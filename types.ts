@@ -5,5 +5,6 @@ export type UserProfile = {
   company?: string;
   role?: string;
   department?: string;
+  destination?: string;
   photoUri: string | null;
 };

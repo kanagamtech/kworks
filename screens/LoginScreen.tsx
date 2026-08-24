@@ -148,13 +148,11 @@ export default function LoginScreen({ user, onSave, onBack, onLogout }: Props) {
     setError('');
   };
 
-  const handleSave = () => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSave = async () => {
     if (!company.trim()) {
       setError('Please select your company.');
-      return;
-    }
-    if (!name.trim()) {
-      setError('Please enter your name.');
       return;
     }
     if (!email.trim()) {
@@ -170,17 +168,97 @@ export default function LoginScreen({ user, onSave, onBack, onLogout }: Props) {
       return;
     }
 
-    onSave({
-      name: name.trim(),
-      email: email.trim(),
-      password: password.trim(),
-      company: company.trim(),
-      photoUri: photoUri || null,
-    });
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      // 1. Authenticate with backend REST API
+      const authRes = await fetch(`${API_BASE}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim(),
+          password: password.trim(),
+          company: company.trim(),
+        }),
+      });
+
+      const authData = await authRes.json().catch(() => null);
+
+      if (authData && authData.success && authData.user) {
+        setIsSubmitting(false);
+        onSave({
+          name: authData.user.name || name.trim() || 'Employee',
+          email: authData.user.email || email.trim(),
+          password: password.trim(),
+          company: authData.user.company || company.trim(),
+          department: authData.user.department || 'General',
+          destination: authData.user.destination || authData.user.role || 'Employee',
+          photoUri: authData.user.photoUri || photoUri || null,
+        });
+        return;
+      }
+
+      // 2. Fallback check directly against /api/employees
+      const empRes = await fetch(`${API_BASE}/api/employees`);
+      const empData = await empRes.json().catch(() => null);
+
+      if (empData && empData.success && Array.isArray(empData.data)) {
+        const match = empData.data.find(
+          (e: any) => e.email?.trim().toLowerCase() === email.trim().toLowerCase()
+        );
+
+        if (!match) {
+          setIsSubmitting(false);
+          setError(
+            `❌ Account "${email.trim()}" not found in company database.\n\nOnly registered employees onboarded by management can access this app. Please contact your HR or Manager.`
+          );
+          return;
+        }
+
+        if (match.company && company.trim().toLowerCase() !== match.company.trim().toLowerCase()) {
+          setIsSubmitting(false);
+          setError(`❌ This account is registered under "${match.company}", not "${company.trim()}".`);
+          return;
+        }
+
+        if (match.password && match.password.trim() !== password.trim()) {
+          setIsSubmitting(false);
+          setError('❌ Incorrect password. Please check your credentials and try again.');
+          return;
+        }
+
+        setIsSubmitting(false);
+        onSave({
+          name: match.name || name.trim() || 'Employee',
+          email: match.email || email.trim(),
+          password: password.trim(),
+          company: match.company || company.trim(),
+          department: match.department || 'General',
+          destination: match.destination || match.role || 'Employee',
+          photoUri: match.photo || photoUri || null,
+        });
+        return;
+      }
+
+      // If backend responded with custom rejection message
+      if (authData && !authData.success && authData.message) {
+        setIsSubmitting(false);
+        setError(`❌ ${authData.message}`);
+        return;
+      }
+
+      // Cannot verify with database
+      setIsSubmitting(false);
+      setError('❌ Unable to verify account with database. Please ensure the server is online.');
+    } catch {
+      setIsSubmitting(false);
+      setError('❌ Server connection failed. Please check your network connection.');
+    }
   };
 
   const initials = name.trim() ? name.trim()[0].toUpperCase() : 'U';
-  const canSave = !!name.trim() && !!company.trim() && !!password.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const canSave = !isSubmitting && !!company.trim() && !!password.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
   return (
     <View style={styles.root}>
@@ -292,11 +370,13 @@ export default function LoginScreen({ user, onSave, onBack, onLogout }: Props) {
             {error ? <Text style={[styles.error, { fontSize: 13 * scale }]}>{error}</Text> : null}
 
             <Pressable
-              style={[styles.saveBtn, { paddingVertical: 16 * scale }, !canSave && styles.saveBtnDisabled]}
-              disabled={!canSave}
+              style={[styles.saveBtn, { paddingVertical: 16 * scale }, (!canSave || isSubmitting) && styles.saveBtnDisabled]}
+              disabled={!canSave || isSubmitting}
               onPress={handleSave}
             >
-              <Text style={[styles.saveText, { fontSize: 16 * scale }]}>Login to KwOrKs App</Text>
+              <Text style={[styles.saveText, { fontSize: 16 * scale }]}>
+                {isSubmitting ? '⏳ Verifying Account...' : user ? 'Save Changes' : 'Sign In to Workspace'}
+              </Text>
             </Pressable>
 
             {user && (

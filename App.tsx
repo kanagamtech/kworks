@@ -18,7 +18,7 @@ import LoginScreen from './screens/LoginScreen';
 import NotificationScreen from './screens/NotificationScreen';
 import ClaimsScreen from './screens/ClaimsScreen';
 import ChatScreen from './screens/ChatScreen';
-
+import { API_BASE } from './utils/config';
 import type { UserProfile } from './types';
 
 if (__DEV__) {
@@ -94,10 +94,48 @@ function AppInner() {
 
   useEffect(() => {
     AsyncStorage.getItem(USER_STORAGE_KEY)
-      .then((raw) => {
+      .then(async (raw) => {
         if (raw) {
           try {
-            const parsed = JSON.parse(raw);
+            const parsed: UserProfile = JSON.parse(raw);
+            if (!parsed || !parsed.email) {
+              setUser(null);
+              setScreen('login');
+              return;
+            }
+
+            // Verify with backend database if account still exists
+            try {
+              const res = await fetch(`${API_BASE}/api/employees`).then((r) => r.json());
+              if (res && res.success && Array.isArray(res.data)) {
+                const match = res.data.find(
+                  (e: any) => e.email?.trim().toLowerCase() === parsed.email?.trim().toLowerCase()
+                );
+                if (match) {
+                  const updated: UserProfile = {
+                    ...parsed,
+                    name: match.name || parsed.name,
+                    company: match.company || parsed.company,
+                    department: match.department || parsed.department,
+                    destination: match.destination || match.role || parsed.destination,
+                    photoUri: match.photo || parsed.photoUri,
+                  };
+                  setUser(updated);
+                  AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
+                  setScreen('home');
+                  return;
+                } else {
+                  // Account not in database -> Reject & redirect to login
+                  setUser(null);
+                  AsyncStorage.removeItem(USER_STORAGE_KEY).catch(() => {});
+                  setScreen('login');
+                  return;
+                }
+              }
+            } catch {
+              // Network offline / fallback
+            }
+
             setUser(parsed);
             setScreen('home');
           } catch {

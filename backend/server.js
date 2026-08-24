@@ -57,6 +57,55 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 200, { success: true, message: 'Database reset successfully to clean initial state', data: resetData });
     }
 
+    // Authentication / Login Route (Checks if employee exists in DB)
+    if (pathname === '/api/auth/login' && req.method === 'POST') {
+      const body = await parseBody(req);
+      const email = (body.email || '').trim().toLowerCase();
+      const password = (body.password || '').trim();
+      const company = (body.company || '').trim().toLowerCase();
+
+      if (!email) {
+        return sendJSON(res, 400, { success: false, message: 'Email is required to log in.' });
+      }
+
+      const employees = db.getEmployees();
+      const match = employees.find((e) => e.email?.trim().toLowerCase() === email);
+
+      if (!match) {
+        return sendJSON(res, 404, {
+          success: false,
+          message: `Account not found in company database. Please contact HR or Manager to onboard your account.`
+        });
+      }
+
+      if (company && match.company && match.company.trim().toLowerCase() !== company) {
+        return sendJSON(res, 400, {
+          success: false,
+          message: `This account is registered under company "${match.company}", not "${body.company}".`
+        });
+      }
+
+      if (match.password && password && match.password.trim() !== password) {
+        return sendJSON(res, 401, {
+          success: false,
+          message: 'Incorrect password. Please try again.'
+        });
+      }
+
+      return sendJSON(res, 200, {
+        success: true,
+        message: 'Login successful',
+        user: {
+          name: match.name,
+          email: match.email,
+          company: match.company || 'kanagamtech',
+          department: match.department || 'General',
+          destination: match.destination || match.role || 'Employee',
+          photoUri: match.photo || null,
+        }
+      });
+    }
+
     // Companies Routes
     if (pathname === '/api/companies' || pathname.startsWith('/api/companies/')) {
       if (req.method === 'GET') {
