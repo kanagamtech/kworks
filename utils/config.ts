@@ -1,10 +1,11 @@
 import { Platform } from 'react-native';
 
-// On real mobile devices, localhost doesn't point to your computer.
-// Use your machine's actual local IP so Expo Go can reach the backend.
-const LAN_IP = '10.52.94.136';
+// Set your Coolify VPS backend domain here:
+const PRODUCTION_BACKEND_URL = 'https://wkorksb.kanagamtech.com';
 
-export const API_BASE =
-  Platform.OS === 'web'
+const LAN_IP = '192.168.0.6';
+
+export const API_BASE = (PRODUCTION_BACKEND_URL ||
+  (Platform.OS === 'web'
     ? 'http://localhost:5000'
-    : `http://${LAN_IP}:5000`;
+    : `http://${LAN_IP}:5000`)).replace(/\/+$/, '');

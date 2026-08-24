@@ -1,4 +1,5 @@
-const API_BASE = ((import.meta as any).env?.VITE_API_URL || 'http://localhost:5000') + '/api';
+const RAW_URL = ((import.meta as any).env?.VITE_API_URL || 'http://localhost:5000').trim().replace(/\/+$/, '');
+const API_BASE = RAW_URL.endsWith('/api') ? RAW_URL : `${RAW_URL}/api`;
 
 export const api = {
   async getEmployees() {
