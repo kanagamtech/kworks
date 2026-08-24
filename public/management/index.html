@@ -1,0 +1,1741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>KwOrKs Management Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --primary: #D7AB6A;
+    --primary-light: #E8C98F;
+    --ink: #2B1022;
+    --text: #FFFFFF;
+    --dim: #E5D4B8;
+    --dim-ink: #9C7B4E;
+    --success: #D7AB6A;
+    --warn: #E08A8A;
+    --card-bg: #FFFFFF;
+    --card-border: #D7AB6A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Open Sans', 'Segoe UI', sans-serif;
+    color: var(--text);
+    background: #4B1D3F;
+    min-height: 100vh;
+  }
+  .app { padding: 18px; width: 100%; min-height: 100vh; }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .site-title { font-size: 22px; font-weight: 800; letter-spacing: 1.5px; color: #FFFFFF; }
+  .site-sub { color: var(--dim); font-size: 12px; margin-top: 3px; }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .site-logo { width: 56px; height: 56px; border-radius: 14px; object-fit: contain; }
+  .header-logo { width: 44px; height: 44px; border-radius: 10px; object-fit: contain; flex-shrink: 0; }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .clock { color: var(--dim); font-size: 13px; font-weight: 600; }
+  .btn {
+    background: #FFFFFF;
+    border: none;
+    border-radius: 10px;
+    color: var(--primary);
+    font-size: 13px;
+    font-weight: 800;
+    padding: 9px 16px;
+    cursor: pointer;
+  }
+  .btn.ghost {
+    background: transparent;
+    border: 1px solid #FFFFFF;
+    color: #FFFFFF;
+  }
+
+  .keys {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+    width: 100%;
+  }
+  .key {
+    flex: 1 1 0;
+    min-width: 150px;
+    background: var(--card-bg);
+    border: 2px solid var(--card-border);
+    border-radius: 14px;
+    padding: 16px 15px;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.15s;
+  }
+  .key.active { border-color: #FFFFFF; background: var(--primary); }
+  .key.active .key-label { color: #FFFFFF; }
+  .key.active .key-stat { color: var(--dim); }
+  .key-label { font-size: 12.5px; font-weight: 800; letter-spacing: 0.7px; color: var(--ink); }
+  .key-stat { color: var(--dim-ink); font-size: 11.5px; margin-top: 5px; }
+
+  .panel {
+    background: var(--card-bg);
+    border: 2px solid var(--card-border);
+    border-radius: 18px;
+    padding: 22px;
+    display: none;
+    width: 100%;
+  }
+  .panel.show { display: block; }
+  .panel-title { font-size: 16px; font-weight: 800; margin-bottom: 16px; text-align: center; color: var(--ink); }
+  .chart-row { display: flex; align-items: center; justify-content: center; gap: 28px; flex-wrap: wrap; }
+  .legend { display: flex; flex-direction: column; gap: 8px; }
+  .legend-item { display: flex; align-items: center; font-size: 13px; font-weight: 600; color: var(--ink); }
+  .legend-dot { width: 12px; height: 12px; border-radius: 6px; margin-right: 9px; }
+  .chips { display: flex; justify-content: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .chip {
+    background: #F7EFE2;
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 9px 15px;
+    text-align: center;
+    min-width: 92px;
+  }
+  .chip-value { font-size: 18px; font-weight: 800; color: var(--ink); }
+  .chip-label { font-size: 10.5px; color: var(--dim-ink); margin-top: 2px; }
+  .list-title { font-size: 12px; font-weight: 800; letter-spacing: 1.2px; color: var(--primary); margin: 18px 0 8px; }
+  .list-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid #E5D4B8;
+    font-size: 13px;
+  }
+  .leave-row { flex-wrap: wrap; }
+  .leave-info { flex: 1; min-width: 170px; }
+  .status-chip {
+    display: inline-block;
+    border-radius: 6px;
+    padding: 2px 8px;
+    color: #FFFFFF;
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    vertical-align: middle;
+  }
+  .approve-btn {
+    background: var(--primary);
+    color: #4B1D3F;
+    border: none;
+    border-radius: 8px;
+    padding: 7px 16px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+  }
+  .approve-btn:hover { background: var(--primary-dark); color: #FFFFFF; }
+  .cancel-btn {
+    background: transparent;
+    border: 1.5px solid #E05050;
+    color: #E05050;
+    border-radius: 8px;
+    padding: 7px 16px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .cancel-btn:hover { background: #E05050; color: #FFFFFF; }
+  .leave-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .dot { width: 8px; height: 8px; border-radius: 4px; background: var(--primary); flex-shrink: 0; }
+  .row-main { color: var(--ink); font-weight: 700; }
+  .row-sub { color: var(--dim-ink); font-size: 11.5px; }
+  .empty { color: var(--dim-ink); font-style: italic; font-size: 12.5px; text-align: center; margin-top: 10px; }
+  .mail-card {
+    border: 1px solid #E4CEA8;
+    border-radius: 12px;
+    background: #FBF5EC;
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+  .mail-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .mail-subject { font-weight: 800; font-size: 13px; color: var(--ink); }
+  .badge {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    border-radius: 8px;
+    border: 1px solid var(--warn);
+    color: var(--warn);
+    padding: 2px 8px;
+    white-space: nowrap;
+  }
+  .badge.resolved { border-color: var(--success); color: var(--success); }
+  .mail-meta { color: var(--dim-ink); font-size: 11px; margin-top: 5px; }
+  .form-card {
+    background: #FBF5EC;
+    border: 1px solid #E4CEA8;
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 16px;
+    width: 100%;
+  }
+  .form-title { font-size: 13px; font-weight: 800; letter-spacing: 1.1px; color: var(--primary); margin-bottom: 14px; }
+  .field-label { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--dim-ink); margin: 12px 0 6px; }
+  .field-label:first-child { margin-top: 0; }
+  .field-input {
+    width: 100%;
+    background: #FFFFFF;
+    border: 1px solid #E4CEA8;
+    border-radius: 10px;
+    color: var(--ink);
+    font-size: 14px;
+    padding: 11px 13px;
+    outline: none;
+    font-family: inherit;
+  }
+  .field-input::placeholder { color: #C9A15E; }
+  textarea.field-input { min-height: 90px; resize: vertical; }
+  .btn.wide { width: 100%; margin-top: 16px; }
+  .save-ok { color: var(--success); font-size: 12.5px; margin-top: 10px; min-height: 16px; text-align: center; }
+  .uploaded-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 0;
+    border-bottom: 1px solid #E5D4B8;
+  }
+  .uploaded-thumb { width: 40px; height: 40px; border-radius: 20px; object-fit: cover; border: 1px solid var(--primary); }
+  .uploaded-info { flex: 1; min-width: 0; }
+  .uploaded-name { font-size: 13px; font-weight: 700; color: var(--ink); }
+  .uploaded-sub { font-size: 11px; color: var(--dim-ink); margin-top: 2px; }
+  .uploaded-del { background: transparent; border: none; color: var(--warn); font-size: 17px; cursor: pointer; padding: 4px 8px; font-weight: 700; }
+  .role-chip {
+    background: var(--primary);
+    color: #4B1D3F;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 11.5px;
+    font-weight: 800;
+    letter-spacing: 1px;
+  }
+  .login-screen {
+    position: fixed;
+    inset: 0;
+    background: #4B1D3F;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    z-index: 50;
+  }
+  .login-card {
+    background: #FFFFFF;
+    border: 2px solid var(--primary);
+    border-radius: 20px;
+    padding: 26px 22px;
+    width: 100%;
+    max-width: 440px;
+  }
+  .login-title { font-size: 22px; font-weight: 800; color: var(--ink); text-align: center; letter-spacing: 1px; }
+  .login-sub { color: var(--dim-ink); font-size: 13px; text-align: center; margin-top: 6px; margin-bottom: 20px; }
+  .login-err { color: var(--warn); font-size: 12px; min-height: 16px; margin-top: 8px; text-align: center; font-weight: 600; }
+  .form-row { display: flex; gap: 10px; }
+  .form-col { flex: 1; }
+  .file-preview { width: 56px; height: 56px; border-radius: 28px; object-fit: cover; border: 1px solid var(--primary); margin-top: 8px; }
+  .hr-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  .poll-draft-row { display: flex; align-items: center; gap: 8px; }
+  .poll-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid #E5D4B8;
+    font-size: 13px;
+  }
+  .poll-opt-text { color: var(--ink); font-weight: 600; flex: 1; min-width: 0; }
+  .poll-opt-count { color: var(--dim-ink); font-size: 12px; font-weight: 700; }
+  .att-grid { display: grid; grid-template-columns: 1fr 360px; gap: 22px; align-items: start; }
+  .att-block-title { font-size: 13px; font-weight: 800; color: var(--dim-ink); letter-spacing: 0.8px; margin: 16px 0 8px; }
+  .person-card { border: 1px solid var(--card-border); border-radius: 14px; padding: 12px; margin-bottom: 10px; background: #FBF5EC; }
+  .person-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; }
+  .person-name { font-weight: 800; color: var(--ink); font-size: 14px; }
+  .person-stat { font-size: 11.5px; color: var(--dim-ink); font-weight: 700; margin-top: 2px; }
+  .person-stat .pt-presented { color: var(--primary-dark); }
+  .person-stat .pt-leave { color: #E05050; }
+  .toggle { color: var(--dim-ink); font-size: 14px; font-weight: 800; }
+  .person-details { margin-top: 8px; border-top: 1px solid #EAD9BC; padding-top: 8px; display: none; }
+  .person-details.open { display: block; }
+  .person-detail { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; padding: 5px 0; border-bottom: 1px dashed #EAD9BC; color: var(--ink); }
+  .person-detail .pd-left { flex-shrink: 0; font-weight: 700; }
+  .person-detail .pd-right { color: var(--dim-ink); font-weight: 600; text-align: right; }
+  .person-detail.leave-line .pd-left { color: #E05050; }
+  .person-detail.leave-line.approved-line .pd-left { color: #9C7B4E; }
+  @media (max-width: 980px) {
+    .att-grid { grid-template-columns: 1fr; }
+  }
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(20,7,17,0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 60;
+    padding: 18px;
+  }
+  .modal-box {
+    background: #FFFFFF;
+    border: 2px solid var(--primary);
+    border-radius: 18px;
+    padding: 22px;
+    width: 100%;
+    max-width: 440px;
+  }
+  .modal-title { font-size: 17px; font-weight: 800; color: var(--ink); text-align: center; letter-spacing: 0.5px; }
+  .modal-sub { color: var(--dim-ink); font-size: 12.5px; text-align: center; margin: 5px 0 14px; }
+  .team-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .team-opt {
+    background: #FBF5EC;
+    border: 1.5px solid var(--card-border);
+    border-radius: 12px;
+    padding: 13px 10px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .team-opt:hover { background: var(--primary); color: #FFFFFF; }
+  .team-chip-row { text-align: center; margin-bottom: 10px; }
+  .btn.ghost-dark { background: transparent; border: 1.5px solid var(--primary-dark); color: var(--primary-dark); width: 100%; margin-top: 8px; }
+  @media (max-width: 440px) {
+    .team-grid { grid-template-columns: 1fr; }
+  }
+  .support-page {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 50;
+    overflow-y: auto;
+    padding: 22px 16px;
+  }
+  .support-top { max-width: 720px; margin: 0 auto 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .support-title { font-size: 18px; font-weight: 800; color: var(--ink); }
+  .support-actions { display: flex; gap: 8px; }
+  .btn.back { width: auto; padding: 9px 14px; font-size: 12.5px; }
+  .btn.small { width: auto; padding: 9px 14px; font-size: 12.5px; background: transparent; border: 1.5px solid var(--primary); color: var(--primary-dark); }
+  .support-wrap { max-width: 1000px; margin: 0 auto; }
+  .sup-stats { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .stat-chip {
+    background: #FFFFFF;
+    border: 1.5px solid var(--card-border);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--ink);
+  }
+  .stat-chip.open { border-color: #E05050; color: #E05050; }
+  .stat-chip.resolved { border-color: #2E7D32; color: #2E7D32; }
+  .sup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+  .ticket-card {
+    background: #FFFFFF;
+    border: 1.5px solid var(--card-border);
+    border-radius: 14px;
+    padding: 13px 15px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+  }
+  .ticket-card:hover { border-color: var(--primary); }
+  .ticket-card.active { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(215,171,106,0.25); }
+  .ticket-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .ticket-subject { font-weight: 800; color: var(--ink); font-size: 14px; }
+  .ticket-meta { color: var(--dim-ink); font-size: 12px; margin-top: 5px; }
+  .thread-card { background: #FFFFFF; border: 1.5px solid var(--card-border); border-radius: 14px; padding: 15px 16px; margin-bottom: 12px; }
+  .thread-msgs { margin-top: 12px; border-top: 1px solid #EAD9BC; padding-top: 12px; max-height: 320px; overflow-y: auto; }
+  .reply-card { background: #FFFFFF; border: 1.5px solid var(--card-border); border-radius: 14px; padding: 15px 16px; }
+  .msg { background: #FBF5EC; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+  .msg.mine { background: #4B1D3F; color: #FFFFFF; }
+  .msg.mine .msg-name { color: #E7CEA8; }
+  .msg.none { background: transparent; border: 1px dashed #EAD9BC; color: var(--dim-ink); font-size: 12.5px; text-align: center; }
+  .msg-name { font-size: 11px; font-weight: 800; color: #9C7B4E; margin-bottom: 3px; }
+  .msg-body { font-size: 13px; line-height: 1.45; }
+  .msg-time { font-size: 10.5px; opacity: 0.65; margin-top: 4px; }
+  .ticket-actions { display: flex; gap: 10px; margin-top: 10px; }
+  .ticket-actions .btn { width: auto; flex: 1; font-size: 12.5px; }
+  .empty-card {
+    background: #FFFFFF;
+    border: 1.5px dashed var(--card-border);
+    border-radius: 14px;
+    padding: 34px 16px;
+    text-align: center;
+    color: var(--dim-ink);
+    font-size: 13px;
+    font-weight: 700;
+  }
+  @media (max-width: 760px) {
+    .sup-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="login-screen" id="loginScreen" style="display:none">
+  <div class="login-card">
+    <img class="site-logo" src="logo.png" alt="Kanagam" />
+    <div class="login-title">KwOrKs Site Login</div>
+    <div class="login-sub">Enter your details and select your role to continue</div>
+    <div class="field-label">NAME</div>
+    <input class="field-input" id="loginName" placeholder="Your name" />
+    <div class="field-label">EMAIL</div>
+    <input class="field-input" id="loginEmail" placeholder="Email address" />
+    <div class="field-label">PASSWORD</div>
+    <input class="field-input" id="loginPass" type="password" placeholder="Password" />
+    <div class="field-label">ROLE</div>
+    <select class="field-input" id="loginRole">
+      <option value="admin">Admin</option>
+      <option value="manager">Manager</option>
+      <option value="hr">HR</option>
+      <option value="it">IT Support</option>
+      <option value="finance">Finances</option>
+    </select>
+    <button class="btn wide" id="loginBtn">Login</button>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<div class="app" id="app" style="display:none">
+  <header>
+    <div class="header-left">
+      <img class="header-logo" src="logo.png" alt="Kanagam" />
+      <div>
+        <div class="site-title">KwOrKs Management Dashboard</div>
+        <div class="site-sub">Live monitoring of attendance, food count, leaves, notifications and IT support mails</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="clock" id="clock"></div>
+      <div class="role-chip" id="roleChip"></div>
+      <button class="btn ghost" id="refreshBtn">Refresh</button>
+      <button class="btn ghost" id="logoutBtn">Logout</button>
+    </div>
+  </header>
+
+  <div class="keys" id="keys"></div>
+
+  <div class="panel" id="panelAttendance">
+    <div class="panel-title">Attendance — common &amp; individual</div>
+    <div class="att-grid">
+      <div class="att-left">
+        <div class="att-block-title">Overall attendance — last 30 days</div>
+        <div style="text-align:center" id="attChart"></div>
+        <div class="chips" id="attChips"></div>
+        <div class="att-block-title">Individual attendance — last 30 days</div>
+        <div style="text-align:center" id="attPersonChart"></div>
+        <div class="att-block-title">Latest attendance records</div>
+        <div id="attList"></div>
+      </div>
+      <div class="att-right">
+        <div class="att-block-title">Per person — presented &amp; leave days</div>
+        <div id="attPeople"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panelFood">
+    <div class="panel-title">Food Count — meal distribution</div>
+    <div class="chart-row">
+      <div id="foodDonut"></div>
+      <div class="legend" id="foodLegend"></div>
+    </div>
+    <div class="list-title">Per meal (all records)</div>
+    <div id="foodList"></div>
+  </div>
+
+  <div class="panel" id="panelLeave">
+    <div class="panel-title" id="leaveTitle">Leave</div>
+    <div class="chart-row">
+      <div id="leaveDonut"></div>
+      <div class="legend" id="leaveLegend"></div>
+    </div>
+    <div class="list-title">Leave dates this month</div>
+    <div id="leaveList"></div>
+  </div>
+
+  <div class="panel" id="panelNotification">
+    <div class="panel-title">Notification — this month's celebrations</div>
+    <div class="chart-row">
+      <div id="notifDonut"></div>
+      <div class="legend" id="notifLegend"></div>
+    </div>
+    <div class="chips" id="notifChips"></div>
+    <div class="list-title">Celebrants this month</div>
+    <div id="notifList"></div>
+    <div class="list-title">Announcements</div>
+    <div id="annList"></div>
+  </div>
+
+  <div class="panel" id="panelSupport">
+    <div class="panel-title">IT Support Mail — delivered</div>
+    <div class="chart-row">
+      <div id="supportDonut"></div>
+      <div class="legend" id="supportLegend"></div>
+    </div>
+    <div class="list-title">Delivered mails (From / To / Cc)</div>
+    <div id="supportList"></div>
+  </div>
+
+  <div class="panel" id="panelPost">
+    <div class="panel-title">Post Notification — common for Admin, Manager &amp; HR</div>
+    <div style="max-width:460px;width:100%;margin:0 auto">
+      <div class="form-card">
+        <div class="form-title">NEW ANNOUNCEMENT</div>
+        <div style="text-align:center">
+          <button class="btn wide" id="postOpenBtn">Post Announcement</button>
+        </div>
+        <div class="save-ok" id="postStatus"></div>
+      </div>
+      <div class="list-title">Published announcements</div>
+      <div id="postList"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="panelHR">
+    <div class="panel-title">HR — Birthday &amp; Anniversary Uploads</div>
+    <div class="hr-grid">
+      <div class="form-card">
+        <div class="form-title">BIRTHDAY</div>
+        <div class="field-label">EMPLOYEE NAME</div>
+        <input class="field-input" id="hbName" placeholder="e.g. Lakshmi Devi" />
+        <div class="form-row">
+          <div class="form-col">
+            <div class="field-label">MONTH</div>
+            <input class="field-input" id="hbMonth" placeholder="e.g. 8" type="number" min="1" max="12" />
+          </div>
+          <div class="form-col">
+            <div class="field-label">DAY</div>
+            <input class="field-input" id="hbDay" placeholder="e.g. 21" type="number" min="1" max="31" />
+          </div>
+        </div>
+        <div class="field-label">PHOTO (optional)</div>
+        <input class="field-input" type="file" id="hbPhoto" accept="image/*" />
+        <img id="hbPhotoPreview" class="file-preview" style="display:none" alt="" />
+        <button class="btn wide" id="hbSave">Upload Birthday</button>
+        <div class="save-ok" id="hbStatus"></div>
+        <div class="list-title">Uploaded birthdays</div>
+        <div id="hbList"></div>
+      </div>
+      <div class="form-card">
+        <div class="form-title">WORK ANNIVERSARY</div>
+        <div class="field-label">EMPLOYEE NAME</div>
+        <input class="field-input" id="haName" placeholder="e.g. Lakshmi Devi" />
+        <div class="form-row">
+          <div class="form-col">
+            <div class="field-label">JOIN MONTH</div>
+            <input class="field-input" id="haMonth" placeholder="e.g. 8" type="number" min="1" max="12" />
+          </div>
+          <div class="form-col">
+            <div class="field-label">JOIN DAY</div>
+            <input class="field-input" id="haDay" placeholder="e.g. 21" type="number" min="1" max="31" />
+          </div>
+        </div>
+        <div class="field-label">JOIN YEAR</div>
+        <input class="field-input" id="haYear" placeholder="e.g. 2019" type="number" min="1990" max="2030" />
+        <button class="btn wide" id="haSave">Add Anniversary</button>
+        <div class="save-ok" id="haStatus"></div>
+        <div class="list-title">Uploaded anniversaries</div>
+        <div id="haList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panelPolls">
+    <div class="panel-title">Polls — created by HR &amp; Management</div>
+    <div style="max-width:460px;width:100%;margin:0 auto">
+      <div class="form-card">
+        <div class="form-title">CREATE POLL</div>
+        <div class="field-label">POLL TITLE / QUESTION</div>
+        <input class="field-input" id="pollTitle" placeholder="e.g. Team outing — which date works best?" />
+        <div class="field-label">OPTIONS (2 - 12)</div>
+        <div id="pollOptionsWrap"></div>
+        <button class="btn" id="addPollOptionBtn" style="margin-top:8px">+ Add option</button>
+        <button class="btn wide" id="pollCreateBtn">Create Poll</button>
+        <div class="save-ok" id="pollStatus"></div>
+      </div>
+      <div class="list-title">Active polls</div>
+      <div id="pollList"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="panelOnboarding">
+    <div class="panel-title">Employee Management &amp; Face Registration</div>
+
+    <div class="form-card" style="margin-bottom:20px">
+      <div class="form-title">REGISTERED COMPANY ORGANIZATIONS</div>
+      <div style="font-size:12.5px;color:#9C7B4E;margin-bottom:10px">Companies managed here will be available in the mobile app login dropdown.</div>
+      <div id="companyBadges" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px"></div>
+      <div style="display:flex;gap:10px;max-width:480px">
+        <input class="field-input" id="newCompanyName" placeholder="Enter new company name..." style="flex:1;margin-bottom:0" />
+        <button class="btn" id="btnAddNewCompany" style="white-space:nowrap">+ Add Company</button>
+      </div>
+      <div class="save-ok" id="companySaveStatus" style="margin-top:8px"></div>
+    </div>
+
+    <div class="cols" style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">
+      <div class="col" style="flex:1;min-width:320px">
+        <div class="form-card">
+          <div class="form-title">ONBOARDED EMPLOYEES &amp; REGISTERED FACES</div>
+          <div class="field-label">SEARCH EMPLOYEE</div>
+          <input class="field-input" id="meSearch" placeholder="Search by name, email, role, or department..." style="margin-bottom:12px" />
+          <div id="meListCount" style="font-size:12px;color:#9C7B4E;margin-bottom:10px;font-weight:700"></div>
+          <div id="meList"></div>
+        </div>
+      </div>
+      <div class="col" style="flex:1;min-width:320px">
+        <div class="form-card">
+          <div class="form-title">ONBOARD NEW EMPLOYEE &amp; REGISTER FACE</div>
+          <div class="field-label">COMPANY ORGANIZATION</div>
+          <select class="field-input" id="meCompany" style="margin-bottom:12px;background:#FFF"></select>
+          <div class="field-label">FULL NAME</div>
+          <input class="field-input" id="meName" placeholder="e.g. Suresh Kumar" />
+          <div class="field-label">EMAIL ADDRESS</div>
+          <input class="field-input" id="meEmail" placeholder="e.g. suresh@kanagam.tech" />
+          <div class="field-label">PASSWORD (FOR APP LOGIN)</div>
+          <input class="field-input" id="mePassword" placeholder="e.g. Pass@1234 (or leave blank for KwOrKs@2026)" />
+          <div class="field-label">DEPARTMENT</div>
+          <input class="field-input" id="meDept" placeholder="e.g. Engineering / HR / Accounts" />
+          <div class="field-label">DESTINATION / DESIGNATION</div>
+          <input class="field-input" id="meRole" placeholder="e.g. Software Engineer / Team Lead" />
+          <div class="field-label">FACE PHOTO FOR ATTENDANCE MATCHING</div>
+          <input type="file" id="mePhoto" accept="image/*" class="field-input" />
+          <img id="mePhotoPreview" class="file-preview" style="display:none" alt="" />
+          <button class="btn wide" id="meSave">Onboard Employee &amp; Register Face</button>
+          <div class="save-ok" id="meStatus"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="support-page" id="supportPage" style="display:none">
+  <div class="support-top">
+    <div style="display:flex;align-items:center;gap:12px">
+      <img class="header-logo" src="logo.png" alt="Kanagam" />
+      <div class="support-title">IT Support — Ticket Clearing</div>
+    </div>
+    <div class="support-actions">
+      <button class="btn small" id="supRefresh">Refresh</button>
+      <button class="btn back" id="supportBack">&#8592; Back to Dashboard</button>
+    </div>
+  </div>
+  <div class="support-wrap">
+    <div class="sup-stats" id="supStats"></div>
+    <div class="sup-grid">
+      <div class="sup-list-col">
+        <div class="list-title">Tickets raised from the app</div>
+        <div id="supList"></div>
+      </div>
+      <div class="sup-thread-col">
+        <div class="list-title">Ticket thread</div>
+        <div id="supThread"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="teamModal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-title">For which team?</div>
+    <div class="modal-sub">Select the team you want to send this message to</div>
+    <div class="team-grid" id="teamOptions"></div>
+    <button class="btn ghost-dark" id="teamCancel">Cancel</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="msgModal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-title">New Announcement</div>
+    <div class="team-chip-row" id="msgTeamChip"></div>
+    <div class="field-label">TITLE</div>
+    <input class="field-input" id="msgTitle" placeholder="e.g. Office timings update" />
+    <div class="field-label">MESSAGE</div>
+    <textarea class="field-input" id="msgBody" placeholder="Write the full message employees should see..."></textarea>
+    <div class="field-label">DATE</div>
+    <input class="field-input" id="msgDate" placeholder="e.g. Aug 20, 2026" />
+    <button class="btn wide" id="msgSaveBtn">Publish Announcement</button>
+    <button class="btn ghost-dark" id="msgCancel">Cancel</button>
+    <div class="login-err" id="msgStatus"></div>
+  </div>
+</div>
+
+<script>
+const KEYS = {
+  attendance: 'kworks_attendance_records',
+  food: 'kworks_food_counts',
+  leave: 'kworks_leave_dates',
+  tickets: 'kworks_it_tickets',
+  mgmtNotices: 'kworks_management_notices',
+  hrNotices: 'kworks_hr_notices',
+  birthdays: 'kworks_birthdays',
+  anniversaries: 'kworks_anniversaries',
+  polls: 'kworks_polls',
+  employees: 'kworks_onboarded_employees',
+};
+const ROLE_KEY = 'kworks_site_role';
+const NAME_KEY = 'kworks_site_name';
+const SITE_CREDS = {
+  admin: { email: 'admin@kworks.com', pass: 'admin123' },
+  manager: { email: 'manager@kworks.com', pass: 'manager123' },
+  hr: { email: 'hr@kworks.com', pass: 'hr123' },
+  it: { email: 'itsupport@kworks.com', pass: 'itsupport123' },
+  finance: { email: 'finance@kworks.com', pass: 'finance123' },
+};
+const ROLE_LABEL = { admin: 'Admin', manager: 'Manager', hr: 'HR', it: 'IT Support', finance: 'Finances' };
+const getRole = () => { try { return localStorage.getItem(ROLE_KEY) || ''; } catch { return ''; } };
+const setRole = (r) => { try { r ? localStorage.setItem(ROLE_KEY, r) : localStorage.removeItem(ROLE_KEY); } catch {} };
+const getSiteName = () => { try { return localStorage.getItem(NAME_KEY) || ''; } catch { return ''; } };
+const setSiteName = (n) => { try { n ? localStorage.setItem(NAME_KEY, n) : localStorage.removeItem(NAME_KEY); } catch {} };
+const monthName = (m) => { const d = new Date(2020, Number(m) - 1, 1); return d.toLocaleDateString('en-US', { month: 'long' }); };
+const todayLabel = () => new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+const itemHTML = (thumb, name, sub, delId) =>
+  '<div class="uploaded-item">' + thumb +
+  '<div class="uploaded-info"><div class="uploaded-name">' + escapeHtml(name) + '</div>' +
+  '<div class="uploaded-sub">' + escapeHtml(sub) + '</div></div>' +
+  '<button class="uploaded-del" data-del="' + delId + '" title="Delete">&times;</button></div>';
+const thumbHTML = (photo) =>
+  photo ? '<img class="uploaded-thumb" src="' + photo + '" alt="" />' : '<div class="dot"></div>';
+const MEAL_LABELS = [
+  ['breakfast', 'Breakfast'],
+  ['morningSnacks', 'Morning Snacks'],
+  ['lunch', 'Lunch'],
+  ['eveningSnacks', 'Evening Snacks'],
+];
+const COLORS = ['#D7AB6A', '#4B1D3F', '#9C5B8B', '#E8C98F', '#6E2F5C', '#C9A15E', '#8C4177', '#F0D9A8'];
+const EMPLOYEES = [
+  { name: 'Rahul Sharma', role: 'Software Engineer', birthM: 7, birthD: 12, joinM: 7, joinD: 15, joinY: 2021 },
+  { name: 'Priya Verma', role: 'HR Executive', birthM: 7, birthD: 3, joinM: 7, joinD: 3, joinY: 2019 },
+  { name: 'Arjun Nair', role: 'UI/UX Designer', birthM: 7, birthD: 21, joinM: 10, joinD: 2, joinY: 2020 },
+  { name: 'Meena Kumar', role: 'Project Manager', birthM: 8, birthD: 5, joinM: 7, joinD: 20, joinY: 2018 },
+  { name: 'Vikram Singh', role: 'QA Analyst', birthM: 7, birthD: 27, joinM: 2, joinD: 18, joinY: 2022 },
+  { name: 'Divya Rao', role: 'DevOps Engineer', birthM: 8, birthD: 15, joinM: 0, joinD: 5, joinY: 2023 },
+];
+const SEED_MGMT = [
+  { id: 'm1', title: 'Diwali Holiday Schedule', body: 'Office will remain closed on Diwali (Nov 8). Plan your leaves accordingly.', date: 'Aug 10, 2026' },
+  { id: 'm2', title: 'Annual Performance Review', body: 'Quarterly performance reviews will begin from Sep 1. Please submit your self-appraisal by Aug 28.', date: 'Aug 18, 2026' },
+];
+const SEED_HR = [
+  { id: 'h1', title: 'July Payslips Released', body: 'July 2026 payslips are now available on the HR portal.', date: 'Aug 2, 2026' },
+];
+
+const $ = (id) => document.getElementById(id);
+const read = (key, fallback) => {
+  try {
+    const v = localStorage.getItem(key);
+    return v ? JSON.parse(v) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+const write = (key, value) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {}
+};
+const ensureSeeded = () => {
+  if (localStorage.getItem(KEYS.mgmtNotices) === null) write(KEYS.mgmtNotices, SEED_MGMT);
+  if (localStorage.getItem(KEYS.hrNotices) === null) write(KEYS.hrNotices, SEED_HR);
+};
+ensureSeeded();
+const pad = (n) => String(n).padStart(2, '0');
+const todayKey = () => { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+const monthKey = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1);
+const lastNDayKeys = (n) => {
+  const out = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    out.push(d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()));
+  }
+  return out;
+};
+
+function donutHTML(segments, size, stroke, centerLabel, centerSub) {
+  const total = segments.reduce((s, x) => s + x.value, 0);
+  const c = size / 2, r = (size - stroke) / 2, C = 2 * Math.PI * r;
+  let acc = 0;
+  let svg = '<svg width="' + size + '" height="' + size + '">' +
+    '<circle cx="' + c + '" cy="' + c + '" r="' + r + '" stroke="rgba(75,29,63,0.12)" stroke-width="' + stroke + '" fill="none"/>';
+  if (total > 0) {
+    for (const s of segments) {
+      const frac = s.value / total;
+      const rot = acc * 360 - 90;
+      acc += frac;
+      svg += '<circle cx="' + c + '" cy="' + c + '" r="' + r + '" stroke="' + s.color + '" stroke-width="' + stroke +
+        '" fill="none" stroke-dasharray="' + (C * frac) + ' ' + (C * (1 - frac)) + '" transform="rotate(' + rot + ' ' + c + ' ' + c + ')"/>';
+    }
+  }
+  svg += '</svg>';
+  return '<div style="position:relative;width:' + size + 'px;height:' + size + 'px">' + svg +
+    '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none">' +
+    '<div style="font-size:32px;font-weight:900;color:var(--ink)">' + centerLabel + '</div>' +
+    '<div style="font-size:12px;color:var(--dim-ink);margin-top:2px">' + centerSub + '</div></div></div>';
+}
+
+function barChartHTML(data, width, height) {
+  const padB = 22, padT = 20, chartH = height - padB - padT;
+  const max = Math.max(1, ...data.map((d) => d.value));
+  const slot = width / data.length;
+  const barW = Math.max(6, Math.min(22, slot * 0.55));
+  let svg = '<svg width="' + width + '" height="' + height + '">';
+  [0.25, 0.5, 0.75, 1].forEach((g) => {
+    svg += '<line x1="0" y1="' + (padT + chartH * (1 - g)) + '" x2="' + width + '" y2="' + (padT + chartH * (1 - g)) + '" stroke="rgba(75,29,63,0.12)" stroke-width="0.5"/>';
+  });
+  data.forEach((d, i) => {
+    const h = (d.value / max) * chartH;
+    const x = slot * i + (slot - barW) / 2;
+    const y = padT + chartH - h;
+    svg += '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + h + '" rx="4" fill="' + (d.value > 0 ? COLORS[i % COLORS.length] : 'rgba(75,29,63,0.12)') + '"/>';
+    if (d.value > 0) svg += '<text x="' + (x + barW / 2) + '" y="' + (y - 5) + '" font-size="10" font-weight="700" fill="#D7AB6A" text-anchor="middle">' + d.value + '</text>';
+    svg += '<text x="' + (x + barW / 2) + '" y="' + (height - 7) + '" font-size="10" font-weight="600" fill="#9C7B4E" text-anchor="middle">' + d.label + '</text>';
+  });
+  svg += '</svg>';
+  return svg;
+}
+
+const legendHTML = (items) => items.map((i) =>
+  '<div class="legend-item"><div class="legend-dot" style="background:' + i.color + '"></div>' + i.text + '</div>'
+).join('');
+
+const rowHTML = (main, sub) =>
+  '<div class="list-row"><div class="dot"></div><div><div class="row-main">' + main + '</div>' +
+  (sub ? '<div class="row-sub">' + sub + '</div>' : '') + '</div></div>';
+
+const emptyHTML = (msg) => '<div class="empty">' + msg + '</div>';
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+const noticeCardHTML = (n) =>
+  '<div class="mail-card"><div class="mail-head"><div class="mail-subject">' + escapeHtml(n.title) + '</div>' + teamBadge(n.team) + '</div>' +
+  '<div class="mail-meta">' + escapeHtml(n.body) + '</div><div class="mail-meta">' + escapeHtml(n.date || '') + '</div></div>';
+
+const TEAMS = ['EASEMS TEAM', 'QUANTUMMATE TEAM', 'HR', 'MANAGER', 'ACCOUNTS', 'ALL'];
+const teamBadge = (team) =>
+  '<span class="status-chip" style="background:' + (team && team !== 'ALL' ? '#4B1D3F' : '#9C7B4E') + '">FOR ' + escapeHtml(team && team !== 'ALL' ? team : 'ALL') + '</span>';
+let selectedTeam = '';
+
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const dayName = (key) => DAY_NAMES[new Date(key + 'T00:00:00').getDay()];
+const fullDateLabel = (key) => new Date(key + 'T00:00:00').toLocaleDateString('en-US', {
+  weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+});
+const displayName = (r) => {
+  if (r.name) return r.name;
+  const local = String(r.user || 'Guest').split('@')[0].replace(/[._-]+/g, ' ');
+  return local ? local.replace(/\b\w/g, (c) => c.toUpperCase()) : 'Guest';
+};
+const shortName = (name) => String(name).split(/[\s@.]+/)[0] || '?';
+
+function renderAttendance() {
+  const records = read(KEYS.attendance, []);
+  const now = new Date();
+  const mk = monthKey(now);
+  const today = todayKey();
+  const windowKeys = lastNDayKeys(30);
+  const days = windowKeys.map((d) => ({
+    label: String(new Date(d + 'T00:00:00').getDate()),
+    value: records.filter((r) => r.date === d).length,
+  }));
+  $('attChart').innerHTML = barChartHTML(days, 760, 300);
+
+  let profileName = '';
+  try {
+    const raw = localStorage.getItem('kworks_user_profile');
+    if (raw) profileName = (JSON.parse(raw).name || '').trim();
+  } catch {}
+
+  const people = {};
+  records.forEach((r) => {
+    if (!windowKeys.includes(r.date)) return;
+    const name = displayName(r);
+    if (!people[name]) people[name] = { name: name, presented: 0, records: [], leaves: [] };
+    people[name].presented++;
+    people[name].records.push({ date: r.date, time: r.time, location: r.location });
+  });
+  Object.entries(leaveRecords()).forEach(([k, rec]) => {
+    if (!windowKeys.includes(k)) return;
+    const name = rec.user || profileName || 'Guest';
+    if (!people[name]) people[name] = { name: name, presented: 0, records: [], leaves: [] };
+    people[name].leaves.push({ date: k, reason: rec.reason, approved: rec.approved, time: rec.time });
+  });
+  const personList = Object.values(people).sort((a, b) => b.presented - a.presented || a.name.localeCompare(b.name));
+
+  const personData = personList.map((p) => ({ label: shortName(p.name), value: p.presented }));
+  $('attPersonChart').innerHTML = personData.length
+    ? barChartHTML(personData, 760, 260)
+    : emptyHTML('No individual records in the last 30 days yet.');
+
+  $('attPeople').innerHTML = personList.map((p, i) => {
+    const leaveCount = p.leaves.length;
+    const rows = p.records.slice().sort((a, b) => (a.date < b.date ? 1 : -1)).map((r) =>
+      '<div class="person-detail"><span class="pd-left">Presented</span>' +
+      '<span class="pd-right">' + fullDateLabel(r.date) + ' &middot; ' + dayName(r.date) + ' &middot; ' + escapeHtml(r.time || '') +
+      (r.location ? ' &middot; ' + escapeHtml(r.location) : '') + '</span></div>'
+    );
+    p.leaves.slice().sort((a, b) => (a.date < b.date ? 1 : -1)).forEach((l) =>
+      rows.push(
+        '<div class="person-detail leave-line' + (l.approved ? ' approved-line' : '') + '"><span class="pd-left">' +
+        (l.approved ? 'Leave (approved)' : 'Leave (pending)') + '</span>' +
+        '<span class="pd-right">' + fullDateLabel(l.date) + ' &middot; ' + dayName(l.date) +
+        (l.reason ? ' &middot; ' + escapeHtml(l.reason) : '') + (l.time ? ' &middot; ' + escapeHtml(l.time) : '') + '</span></div>'
+      )
+    );
+    return '<div class="person-card"><div class="person-head" data-pi="' + i + '">' +
+      '<div><div class="person-name">' + escapeHtml(p.name) + '</div>' +
+      '<div class="person-stat"><span class="pt-presented">Presented ' + p.presented + ' day' + (p.presented === 1 ? '' : 's') + '</span>' +
+      ' &middot; <span class="pt-leave">Leave ' + leaveCount + ' day' + (leaveCount === 1 ? '' : 's') + '</span></div></div>' +
+      '<span class="toggle">&#9662;</span></div>' +
+      '<div class="person-details" id="pd' + i + '">' + (rows.join('') || '<div class="empty" style="text-align:left">No records in the last 30 days.</div>') +
+      '</div></div>';
+  }).join('') || emptyHTML('No records yet. They will appear here once employees mark attendance or request leave.');
+  document.querySelectorAll('[data-pi]').forEach((el) => {
+    el.addEventListener('click', () => {
+      const details = $('pd' + el.dataset.pi);
+      details.classList.toggle('open');
+      el.querySelector('.toggle').textContent = details.classList.contains('open') ? '\u25B4' : '\u25BE';
+    });
+  });
+
+  const monthCount = records.filter((r) => r.date.startsWith(mk)).length;
+  const todayCount = records.filter((r) => r.date === today).length;
+  $('attChips').innerHTML =
+    '<div class="chip"><div class="chip-value">' + todayCount + '</div><div class="chip-label">Today</div></div>' +
+    '<div class="chip"><div class="chip-value">' + monthCount + '</div><div class="chip-label">This month</div></div>' +
+    '<div class="chip"><div class="chip-value">' + records.length + '</div><div class="chip-label">Total marks</div></div>' +
+    '<div class="chip"><div class="chip-value">' + personList.length + '</div><div class="chip-label">Employees tracked</div></div>';
+  $('attList').innerHTML = records.slice(0, 15).map((r) => {
+    const maps = r.mapsUrl || (r.latitude && r.longitude ? 'https://www.google.com/maps?q=' + r.latitude + ',' + r.longitude : '');
+    const gpsInfo = r.gpsFormatted ? ' (' + escapeHtml(r.gpsFormatted) + ')' : '';
+    const link = maps ? ' &middot; <a href="' + maps + '" target="_blank" style="color:#D7AB6A;font-weight:700;text-decoration:underline">🗺️ View Map</a>' : '';
+    return rowHTML(escapeHtml(displayName(r)) + ' &middot; ' + escapeHtml(r.time), escapeHtml(r.location || 'Location unknown') + gpsInfo + link);
+  }).join('') || emptyHTML('No attendance marked yet. Records will appear here once employees mark attendance.');
+}
+
+function renderFood() {
+  const food = read(KEYS.food, []);
+  const stats = MEAL_LABELS.map(([key, label]) => {
+    let yes = 0, no = 0;
+    for (const r of food) {
+      const v = r.meals ? r.meals[key] : null;
+      if (v === true) yes++;
+      else if (v === false) no++;
+    }
+    return { label, yes, no };
+  });
+  const totalYes = stats.reduce((s, x) => s + x.yes, 0);
+  const totalNo = stats.reduce((s, x) => s + x.no, 0);
+  $('foodDonut').innerHTML = donutHTML(
+    stats.map((s, i) => ({ value: s.yes, color: COLORS[(i + 1) % COLORS.length] })),
+    260, 28, String(totalYes), 'YES meals'
+  );
+  $('foodLegend').innerHTML = legendHTML(
+    stats.map((s, i) => ({ color: COLORS[(i + 1) % COLORS.length], text: s.label + ' — ' + s.yes }))
+      .concat([{ color: '#C4CFEA', text: 'No — ' + totalNo + (totalNo === 1 ? ' meal' : ' meals') }])
+  );
+  $('foodList').innerHTML = stats.map((s) => rowHTML(s.label, 'YES ' + s.yes + ' &middot; NO ' + s.no)).join('') ||
+    emptyHTML('No food counts submitted yet.');
+}
+
+function leaveRecords() {
+  const raw = read(KEYS.leave, {});
+  if (Array.isArray(raw)) {
+    const out = {};
+    raw.forEach((k) => {
+      if (typeof k === 'string') out[k] = { reason: '', approved: false, status: 'pending' };
+    });
+    return out;
+  }
+  const out = raw || {};
+  Object.keys(out).forEach((k) => {
+    if (!out[k].status) out[k].status = out[k].approved ? 'approved' : 'pending';
+  });
+  return out;
+}
+
+function decideLeave(key, action) {
+  const leaves = leaveRecords();
+  if (leaves[key]) {
+    const role = ROLE_LABEL[getRole()] || getRole();
+    const who = getSiteName() ? role + ' &middot; ' + getSiteName() : role;
+    leaves[key].status = action;
+    leaves[key].approved = action === 'approved';
+    leaves[key].decidedBy = who;
+    leaves[key].decidedAt = new Date().toLocaleString();
+    write(KEYS.leave, leaves);
+    renderLeave();
+    renderAttendance();
+  }
+}
+
+function renderLeave() {
+  const now = new Date();
+  const mk = monthKey(now);
+  const leaves = leaveRecords();
+  const entries = Object.entries(leaves).filter(([k]) => k.startsWith(mk)).sort();
+  const pending = entries.filter(([, r]) => r.status === 'pending' || (!r.status && !r.approved)).length;
+  const approved = entries.filter(([, r]) => r.status === 'approved' || (r.status !== 'cancelled' && r.approved)).length;
+  const cancelled = entries.filter(([, r]) => r.status === 'cancelled').length;
+  const leaveCount = entries.length;
+  $('leaveTitle').textContent = 'Leave — ' + now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  let sundays = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    if (new Date(now.getFullYear(), now.getMonth(), d).getDay() === 0) sundays++;
+  }
+  const working = daysInMonth - sundays - leaveCount;
+  $('leaveDonut').innerHTML = donutHTML(
+    [
+      { value: Math.max(0, working), color: COLORS[0] },
+      { value: approved, color: '#E05050' },
+      { value: pending, color: '#4169E1' },
+      { value: cancelled, color: '#787880' },
+      { value: sundays, color: '#A9B8DC' },
+    ],
+    260, 28, String(leaveCount), 'leave days'
+  );
+  $('leaveLegend').innerHTML = legendHTML([
+    { color: COLORS[0], text: working + ' working days' },
+    { color: '#E05050', text: approved + ' approved' },
+    { color: '#4169E1', text: pending + ' pending' },
+    { color: '#787880', text: cancelled + ' cancelled' },
+    { color: '#A9B8DC', text: sundays + ' Sundays' },
+  ]);
+  $('leaveList').innerHTML = entries.map(([k, r]) => {
+    const d = new Date(k + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const reason = r.reason ? escapeHtml(r.reason) : 'No reason given';
+    const st = r.status === 'cancelled' ? 'cancelled' : r.status === 'approved' || r.approved ? 'approved' : 'pending';
+    const chip = st === 'approved'
+      ? '<span class="status-chip" style="background:#E05050">APPROVED</span>'
+      : st === 'cancelled'
+        ? '<span class="status-chip" style="background:#787880">CANCELLED</span>'
+        : '<span class="status-chip" style="background:#4169E1">PENDING</span>';
+    const meta = '<div class="row-sub">' +
+      (r.user ? escapeHtml(r.user) + ' &middot; ' : '') + reason +
+      (r.type ? ' &middot; ' + escapeHtml(r.type) : '') +
+      (r.time ? ' &middot; Raised: ' + escapeHtml(r.time) : '') +
+      (r.decidedBy && r.decidedAt ? ' &middot; ' + (st === 'approved' ? 'Approved' : 'Cancelled') + ' by ' + escapeHtml(r.decidedBy) + ' at ' + escapeHtml(r.decidedAt) : '') +
+      '</div>';
+    const btns = st === 'pending'
+      ? '<div class="leave-btns"><button class="approve-btn" onclick="decideLeave(\'' + k + '\',\'approved\')">Approve</button>' +
+        '<button class="cancel-btn" onclick="decideLeave(\'' + k + '\',\'cancelled\')">Cancel</button></div>'
+      : st === 'approved'
+        ? '<button class="cancel-btn" onclick="decideLeave(\'' + k + '\',\'cancelled\')">Cancel</button>'
+        : '<button class="approve-btn" onclick="decideLeave(\'' + k + '\',\'approved\')">Approve</button>';
+    return '<div class="list-row leave-row"><div class="dot"></div><div class="leave-info">' +
+      '<div class="row-main">' + d + ' &nbsp;' + chip + '</div>' +
+      meta + '</div>' + btns + '</div>';
+  }).join('') || emptyHTML('No leave requests this month.');
+}
+
+function renderNotification() {
+  const now = new Date();
+  const m = now.getMonth();
+  const uploadedBirth = read(KEYS.birthdays, []);
+  const uploadedAnniv = read(KEYS.anniversaries, []);
+  const birthdays = EMPLOYEES.filter((e) => e.birthM === m)
+    .concat(uploadedBirth.filter((b) => Number(b.month) === m));
+  const annivs = EMPLOYEES.filter((e) => e.joinM === m)
+    .concat(uploadedAnniv.filter((a) => Number(a.month) === m));
+  $('notifDonut').innerHTML = donutHTML(
+    [{ value: birthdays.length, color: COLORS[1] }, { value: annivs.length, color: COLORS[0] }],
+    260, 28, String(birthdays.length + annivs.length), 'events'
+  );
+  $('notifLegend').innerHTML = legendHTML([
+    { color: COLORS[1], text: birthdays.length + ' birthdays' },
+    { color: COLORS[0], text: annivs.length + ' anniversaries' },
+  ]);
+  const mgmt = read(KEYS.mgmtNotices, SEED_MGMT);
+  const hr = read(KEYS.hrNotices, SEED_HR);
+  $('notifChips').innerHTML =
+    '<div class="chip"><div class="chip-value">' + mgmt.length + '</div><div class="chip-label">Mgmt notices</div></div>' +
+    '<div class="chip"><div class="chip-value">' + hr.length + '</div><div class="chip-label">HR notices</div></div>' +
+    '<div class="chip"><div class="chip-value">' + EMPLOYEES.length + '</div><div class="chip-label">Employees</div></div>';
+  const celebList = birthdays.map((e) => ({ name: e.name, role: e.role || 'Birthday', photo: e.photo }))
+    .concat(annivs.map((e) => ({ name: e.name, role: e.role || 'Work Anniversary', photo: e.photo })));
+  $('notifList').innerHTML = celebList.map((e) =>
+    '<div class="uploaded-item">' +
+    (e.photo ? '<img class="uploaded-thumb" src="' + e.photo + '" alt="" />' : '<div class="dot"></div>') +
+    '<div class="uploaded-info"><div class="uploaded-name">' + escapeHtml(e.name) + '</div>' +
+    '<div class="uploaded-sub">' + escapeHtml(e.role) + '</div></div></div>'
+  ).join('') || emptyHTML('No celebrations this month.');
+  const all = mgmt.concat(hr);
+  $('annList').innerHTML = all.map(noticeCardHTML).join('') || emptyHTML('No announcements yet.');
+}
+
+function renderSupport() {
+  const tickets = read(KEYS.tickets, []);
+  const open = tickets.filter((t) => t.status === 'open').length;
+  const resolved = tickets.filter((t) => t.status === 'resolved').length;
+  $('supportDonut').innerHTML = donutHTML(
+    [{ value: open, color: COLORS[1] }, { value: resolved, color: COLORS[2] }],
+    260, 28, String(tickets.length), 'mails'
+  );
+  $('supportLegend').innerHTML = legendHTML([
+    { color: COLORS[1], text: open + ' open tickets' },
+    { color: COLORS[2], text: resolved + ' resolved' },
+  ]);
+  $('supportList').innerHTML = tickets.map((t) =>
+    '<div class="mail-card"><div class="mail-head"><div class="mail-subject">' + escapeHtml(t.subject) + '</div>' +
+    '<span class="badge ' + (t.status === 'resolved' ? 'resolved' : '') + '">' + (t.status === 'open' ? 'OPEN' : 'RESOLVED') + '</span></div>' +
+    '<div class="mail-meta">From: ' + escapeHtml(t.from) + ' &middot; To: ' + escapeHtml(t.to) + ' &middot; Cc: ' + escapeHtml(t.cc) + '</div>' +
+    '<div class="mail-meta">' + escapeHtml(t.createdAt || '') + ' &middot; ' + (t.messages ? t.messages.length : 0) + ' message(s)</div></div>'
+  ).join('') || emptyHTML('No IT support mails delivered yet.');
+}
+
+function renderPost() {
+  const mgmt = read(KEYS.mgmtNotices, SEED_MGMT);
+  const hr = read(KEYS.hrNotices, SEED_HR);
+  const all = mgmt.map((n) => ({ ...n, src: 'm' })).concat(hr.map((n) => ({ ...n, src: 'h' })));
+  $('postList').innerHTML = all.map((n) =>
+    '<div class="uploaded-item">' +
+    '<div class="uploaded-info"><div class="uploaded-name">' + escapeHtml(n.title) + ' ' + teamBadge(n.team) + '</div>' +
+    '<div class="uploaded-sub">' + escapeHtml(n.body) + ' — ' + escapeHtml(n.date || '') + '</div></div>' +
+    '<button class="uploaded-del" data-del="' + n.src + ':' + n.id + '" title="Delete">&times;</button></div>'
+  ).join('') || emptyHTML('No announcements published yet.');
+  document.querySelectorAll('#postList [data-del]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const [src, id] = btn.dataset.del.split(':');
+      const key = src === 'h' ? KEYS.hrNotices : KEYS.mgmtNotices;
+      write(key, read(key, []).filter((n) => n.id !== id));
+      renderPost();
+      renderNotification();
+    });
+  });
+}
+
+$('postOpenBtn').addEventListener('click', () => {
+  selectedTeam = '';
+  $('postStatus').textContent = '';
+  $('teamOptions').innerHTML = TEAMS.map((t) =>
+    '<div class="team-opt" data-team="' + t + '">' + t + '</div>'
+  ).join('');
+  document.querySelectorAll('#teamOptions .team-opt').forEach((el) => {
+    el.addEventListener('click', () => {
+      selectedTeam = el.dataset.team;
+      $('teamModal').style.display = 'none';
+      $('msgStatus').textContent = '';
+      $('msgTeamChip').innerHTML = teamBadge(selectedTeam);
+      $('msgModal').style.display = 'flex';
+    });
+  });
+  $('teamModal').style.display = 'flex';
+});
+
+$('teamCancel').addEventListener('click', () => {
+  $('teamModal').style.display = 'none';
+});
+
+$('msgCancel').addEventListener('click', () => {
+  $('msgModal').style.display = 'none';
+});
+
+$('msgSaveBtn').addEventListener('click', () => {
+  const title = $('msgTitle').value.trim();
+  const body = $('msgBody').value.trim();
+  if (!title || !body) {
+    $('msgStatus').textContent = 'Please enter a title and message.';
+    return;
+  }
+  const mgmt = read(KEYS.mgmtNotices, []);
+  mgmt.unshift({
+    id: 'n' + Date.now(),
+    title: title,
+    body: body,
+    date: $('msgDate').value.trim() || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    team: selectedTeam || 'ALL',
+  });
+  write(KEYS.mgmtNotices, mgmt.slice(0, 40));
+  $('msgTitle').value = '';
+  $('msgBody').value = '';
+  $('msgDate').value = '';
+  $('msgModal').style.display = 'none';
+  $('postStatus').textContent = 'Announcement published to ' + selectedTeam + '.';
+  renderPost();
+  renderNotification();
+});
+
+function renderHR() {
+  const b = read(KEYS.birthdays, []);
+  const a = read(KEYS.anniversaries, []);
+  $('hbList').innerHTML = b.map((x) =>
+    itemHTML(thumbHTML(x.photo), x.name, 'Birthday — ' + monthName(x.month) + ' ' + x.day, x.id)
+  ).join('') || emptyHTML('No birthdays uploaded yet.');
+  document.querySelectorAll('#hbList [data-del]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      write(KEYS.birthdays, read(KEYS.birthdays, []).filter((x) => x.id !== btn.dataset.del));
+      renderHR();
+      buildKeys();
+    });
+  });
+  $('haList').innerHTML = a.map((x) =>
+    itemHTML('<div class="dot"></div>', x.name, 'Work Anniversary — ' + monthName(x.month) + ' ' + x.day + ', ' + x.year, x.id)
+  ).join('') || emptyHTML('No anniversaries uploaded yet.');
+  document.querySelectorAll('#haList [data-del]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      write(KEYS.anniversaries, read(KEYS.anniversaries, []).filter((x) => x.id !== btn.dataset.del));
+      renderHR();
+      buildKeys();
+    });
+  });
+}
+
+let pollDraft = ['', ''];
+function renderPollDraft() {
+  $('pollOptionsWrap').innerHTML = pollDraft.map((v, i) =>
+    '<div class="poll-draft-row"><input class="field-input" id="popt' + i + '" placeholder="Option ' + (i + 1) + '" value="' + escapeHtml(v) + '" />' +
+    (pollDraft.length > 2 ? '<button class="uploaded-del" data-ri="' + i + '">&times;</button>' : '') + '</div>'
+  ).join('');
+  document.querySelectorAll('#pollOptionsWrap [data-ri]').forEach((b) => {
+    b.addEventListener('click', () => {
+      pollDraft = pollDraft.filter((_, idx) => idx !== Number(b.dataset.ri));
+      renderPollDraft();
+    });
+  });
+}
+
+function renderPolls() {
+  const polls = read(KEYS.polls, []);
+  $('pollList').innerHTML = polls.map((p) => {
+    const total = Object.keys(p.votes || {}).length;
+    const rows = p.options.map((o, idx) => {
+      const count = Object.values(p.votes || {}).filter((v) => v === idx).length;
+      const pct = total ? Math.round((count / total) * 100) : 0;
+      return '<div class="poll-row"><span class="poll-opt-text">' + escapeHtml(o) + '</span>' +
+        '<span class="poll-opt-count">' + count + ' &middot; ' + pct + '%</span></div>';
+    }).join('');
+    return '<div class="mail-card"><div class="mail-head"><div class="mail-subject">' + escapeHtml(p.title) + '</div>' +
+      '<span class="status-chip" style="background:#F7EFE2;color:#9C7B4E">' + total + ' vote' + (total === 1 ? '' : 's') + '</span></div>' +
+      rows + '<button class="uploaded-del" data-pdel="' + p.id + '" style="margin-top:6px" title="Delete">&times; Delete</button></div>';
+  }).join('') || emptyHTML('No polls created yet.');
+  document.querySelectorAll('#pollList [data-pdel]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      write(KEYS.polls, read(KEYS.polls, []).filter((p) => p.id !== btn.dataset.pdel));
+      renderPolls();
+      buildKeys();
+    });
+  });
+}
+
+$('hbPhoto').addEventListener('change', (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    $('hbPhotoPreview').src = ev.target.result;
+    $('hbPhotoPreview').style.display = 'block';
+    window.__hbPhotoData = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+$('hbSave').addEventListener('click', () => {
+  const name = $('hbName').value.trim();
+  const month = parseInt($('hbMonth').value, 10);
+  const day = parseInt($('hbDay').value, 10);
+  if (!name || !month || !day || month < 1 || month > 12 || day < 1 || day > 31) {
+    $('hbStatus').textContent = 'Please enter name and a valid month and day.';
+    return;
+  }
+  const list = read(KEYS.birthdays, []);
+  list.unshift({ id: 'b' + Date.now(), name: name, month: String(month), day: String(day), photo: window.__hbPhotoData || null, role: 'Birthday' });
+  write(KEYS.birthdays, list.slice(0, 50));
+  $('hbName').value = ''; $('hbMonth').value = ''; $('hbDay').value = '';
+  $('hbPhoto').value = ''; $('hbPhotoPreview').style.display = 'none'; window.__hbPhotoData = null;
+  $('hbStatus').textContent = 'Birthday uploaded successfully.';
+  renderHR();
+  buildKeys();
+});
+
+$('haSave').addEventListener('click', () => {
+  const name = $('haName').value.trim();
+  const month = parseInt($('haMonth').value, 10);
+  const day = parseInt($('haDay').value, 10);
+  const year = parseInt($('haYear').value, 10);
+  if (!name || !month || !day || !year || month < 1 || month > 12 || day < 1 || day > 31 || year < 1990 || year > 2030) {
+    $('haStatus').textContent = 'Please enter name and a valid join date.';
+    return;
+  }
+  const list = read(KEYS.anniversaries, []);
+  list.unshift({ id: 'a' + Date.now(), name: name, month: String(month), day: String(day), year: String(year) });
+  write(KEYS.anniversaries, list.slice(0, 50));
+  $('haName').value = ''; $('haMonth').value = ''; $('haDay').value = ''; $('haYear').value = '';
+  $('haStatus').textContent = 'Anniversary added successfully.';
+  renderHR();
+  buildKeys();
+});
+
+$('addPollOptionBtn').addEventListener('click', () => {
+  if (pollDraft.length < 12) { pollDraft.push(''); renderPollDraft(); }
+});
+
+$('pollCreateBtn').addEventListener('click', () => {
+  const title = $('pollTitle').value.trim();
+  const opts = pollDraft.map((o, i) => ($('popt' + i) ? $('popt' + i).value : o)).map((v) => v.trim()).filter(Boolean);
+  if (!title || opts.length < 2) { $('pollStatus').textContent = 'Enter a title and at least 2 options.'; return; }
+  const polls = read(KEYS.polls, []);
+  polls.unshift({ id: 'p' + Date.now(), title: title, options: opts, votes: {}, createdAt: Date.now() });
+  write(KEYS.polls, polls.slice(0, 50));
+  $('pollTitle').value = ''; pollDraft = ['', '']; renderPollDraft();
+  $('pollStatus').textContent = 'Poll created successfully.';
+  renderPolls();
+  buildKeys();
+});
+
+renderPollDraft();
+
+let meSearchQuery = '';
+
+let currentCompaniesList = ['kanagamtech', 'amsems'];
+
+function renderCompaniesUI() {
+  if ($('companyBadges')) {
+    $('companyBadges').innerHTML = currentCompaniesList.map((c) =>
+      `<div style="background:rgba(215,171,106,0.18);border:1px solid #D7AB6A;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:700;color:#31122B;display:flex;align-items:center;gap:6px"><span>🏢</span>${c}</div>`
+    ).join('');
+  }
+  if ($('meCompany')) {
+    const prev = $('meCompany').value;
+    $('meCompany').innerHTML = currentCompaniesList.map((c) =>
+      `<option value="${c}" ${c === prev ? 'selected' : ''}>${c}</option>`
+    ).join('');
+  }
+}
+
+function loadCompanies() {
+  fetch('/api/companies')
+    .then((r) => r.json())
+    .then((res) => {
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        currentCompaniesList = res.data;
+        renderCompaniesUI();
+      }
+    })
+    .catch(() => {
+      renderCompaniesUI();
+    });
+}
+
+if ($('btnAddNewCompany')) {
+  $('btnAddNewCompany').addEventListener('click', () => {
+    const val = $('newCompanyName').value.trim().toLowerCase();
+    if (!val) {
+      $('companySaveStatus').textContent = 'Please enter a company name.';
+      return;
+    }
+    if (!currentCompaniesList.includes(val)) {
+      currentCompaniesList.push(val);
+      fetch('/api/companies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: val }),
+      }).catch(() => {});
+    }
+    $('newCompanyName').value = '';
+    renderCompaniesUI();
+    $('companySaveStatus').textContent = `Company "${val}" added! Mobile app users can now log in under this company.`;
+    setTimeout(() => { $('companySaveStatus').textContent = ''; }, 4000);
+  });
+}
+
+function renderOnboarding() {
+  loadCompanies();
+  const list = read(KEYS.employees, []);
+  const query = meSearchQuery.toLowerCase().trim();
+  const filtered = list.filter((e) =>
+    !query ||
+    (e.name && e.name.toLowerCase().includes(query)) ||
+    (e.email && e.email.toLowerCase().includes(query)) ||
+    (e.role && e.role.toLowerCase().includes(query)) ||
+    (e.department && e.department.toLowerCase().includes(query)) ||
+    (e.company && e.company.toLowerCase().includes(query)) ||
+    (e.id && e.id.toLowerCase().includes(query))
+  );
+
+  if ($('meListCount')) {
+    $('meListCount').textContent = 'Showing ' + filtered.length + ' of ' + list.length + ' onboarded employee(s)';
+  }
+
+  if ($('meList')) {
+    $('meList').innerHTML = filtered.map((e) =>
+      itemHTML(thumbHTML(e.photo), e.name, (e.company ? '[' + e.company + '] ' : '') + (e.role || 'Employee') + (e.department ? ' · ' + e.department : '') + ' · ' + e.email, e.id)
+    ).join('') || emptyHTML(query ? 'No matching employees found.' : 'No employees onboarded yet.');
+    document.querySelectorAll('#meList [data-del]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        write(KEYS.employees, read(KEYS.employees, []).filter((e) => e.id !== btn.dataset.del));
+        renderOnboarding();
+        buildKeys();
+      });
+    });
+  }
+}
+
+if ($('meSearch')) {
+  $('meSearch').addEventListener('input', (e) => {
+    meSearchQuery = e.target.value;
+    renderOnboarding();
+  });
+}
+
+if ($('mePhoto')) {
+  $('mePhoto').addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      $('mePhotoPreview').src = ev.target.result;
+      $('mePhotoPreview').style.display = 'block';
+      window.__mePhotoData = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+if ($('meSave')) {
+  $('meSave').addEventListener('click', () => {
+    const company = ($('meCompany') && $('meCompany').value) || 'kanagamtech';
+    const name = $('meName').value.trim();
+    const email = $('meEmail').value.trim();
+    const pass = ($('mePassword') && $('mePassword').value.trim()) || 'KwOrKs@2026';
+    const role = $('meRole').value.trim() || 'Employee';
+    const dept = $('meDept').value.trim() || 'General';
+    if (!name || !email) {
+      $('meStatus').textContent = 'Please enter both full name and email.';
+      return;
+    }
+    const list = read(KEYS.employees, []);
+    const newEmp = {
+      id: 'EMP-' + Math.floor(1000 + Math.random() * 9000),
+      name: name,
+      email: email,
+      password: pass,
+      company: company,
+      role: role,
+      department: dept,
+      photo: window.__mePhotoData || '',
+      joinDate: todayLabel(),
+    };
+    list.unshift(newEmp);
+    write(KEYS.employees, list);
+
+    fetch('/api/employees', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newEmp),
+    }).catch(() => {});
+
+    $('meName').value = ''; $('meEmail').value = ''; $('meRole').value = ''; $('meDept').value = '';
+    if ($('mePassword')) $('mePassword').value = '';
+    if ($('mePhoto')) $('mePhoto').value = '';
+    if ($('mePhotoPreview')) $('mePhotoPreview').style.display = 'none';
+    window.__mePhotoData = null;
+    $('meStatus').textContent = 'Employee onboarded and face registered successfully!';
+    renderOnboarding();
+    buildKeys();
+  });
+}
+
+const HR_SECTIONS = [
+  { id: 'onboarding', label: 'EMPLOYEE ONBOARDING', panel: 'panelOnboarding', stat: function () { return read(KEYS.employees, []).length + ' onboarded'; } },
+  { id: 'attendance', label: 'ATTENDANCE', panel: 'panelAttendance', stat: function () { return read(KEYS.attendance, []).filter((r) => r.date === todayKey()).length + ' today'; } },
+  { id: 'hr', label: 'HR UPLOADS', panel: 'panelHR', stat: function () { return read(KEYS.birthdays, []).length + ' + ' + read(KEYS.anniversaries, []).length + ' records'; } },
+  { id: 'post', label: 'ANNOUNCEMENT', panel: 'panelPost', stat: function () { return (read(KEYS.mgmtNotices, []).length + read(KEYS.hrNotices, []).length) + ' published'; } },
+  { id: 'polls', label: 'POLLS', panel: 'panelPolls', stat: function () { return read(KEYS.polls, []).length + ' active'; } },
+];
+const MANAGER_SECTIONS = [
+  { id: 'onboarding', label: 'EMPLOYEE ONBOARDING', panel: 'panelOnboarding', stat: function () { return read(KEYS.employees, []).length + ' onboarded'; } },
+  { id: 'attendance', label: 'ATTENDANCE', panel: 'panelAttendance', stat: function () { return read(KEYS.attendance, []).filter((r) => r.date === todayKey()).length + ' today'; } },
+  { id: 'food', label: 'FOOD COUNT', panel: 'panelFood', stat: function () { return read(KEYS.food, []).length + ' days'; } },
+  { id: 'leave', label: 'LEAVE APPROVAL', panel: 'panelLeave', stat: function () { return Object.entries(leaveRecords()).filter(([k]) => k.startsWith(monthKey(new Date()))).length + ' this month'; } },
+  { id: 'post', label: 'ANNOUNCEMENT', panel: 'panelPost', stat: function () { return (read(KEYS.mgmtNotices, []).length + read(KEYS.hrNotices, []).length) + ' published'; } },
+  { id: 'polls', label: 'POLLS', panel: 'panelPolls', stat: function () { return read(KEYS.polls, []).length + ' active'; } },
+];
+const ADMIN_SECTIONS = [
+  { id: 'onboarding', label: 'EMPLOYEE ONBOARDING', panel: 'panelOnboarding', stat: function () { return read(KEYS.employees, []).length + ' onboarded'; } },
+  { id: 'attendance', label: 'ATTENDANCE', panel: 'panelAttendance', stat: function () { return read(KEYS.attendance, []).filter((r) => r.date === todayKey()).length + ' today'; } },
+  { id: 'food', label: 'FOOD COUNT', panel: 'panelFood', stat: function () { return read(KEYS.food, []).length + ' days'; } },
+  { id: 'leave', label: 'LEAVE', panel: 'panelLeave', stat: function () { return Object.entries(leaveRecords()).filter(([k]) => k.startsWith(monthKey(new Date()))).length + ' this month'; } },
+  { id: 'notification', label: 'NOTIFICATION', panel: 'panelNotification', stat: function () {
+    const m = new Date().getMonth();
+    return (EMPLOYEES.filter((e) => e.birthM === m).length + EMPLOYEES.filter((e) => e.joinM === m).length) + ' events';
+  } },
+  { id: 'support', label: 'IT SUPPORT MAIL', panel: 'panelSupport', stat: function () { return read(KEYS.tickets, []).length + ' delivered'; } },
+  { id: 'post', label: 'ANNOUNCEMENT', panel: 'panelPost', stat: function () { return (read(KEYS.mgmtNotices, []).length + read(KEYS.hrNotices, []).length) + ' published'; } },
+  { id: 'hr', label: 'HR UPLOADS', panel: 'panelHR', stat: function () { return read(KEYS.birthdays, []).length + ' + ' + read(KEYS.anniversaries, []).length + ' records'; } },
+  { id: 'polls', label: 'POLLS', panel: 'panelPolls', stat: function () { return read(KEYS.polls, []).length + ' active'; } },
+];
+const IT_SECTIONS = [
+  { id: 'support', label: 'IT SUPPORT MAIL', panel: 'panelSupport', stat: function () { return read(KEYS.tickets, []).length + ' delivered'; } },
+  { id: 'post', label: 'ANNOUNCEMENT', panel: 'panelPost', stat: function () { return (read(KEYS.mgmtNotices, []).length + read(KEYS.hrNotices, []).length) + ' published'; } },
+];
+const FINANCE_SECTIONS = [
+  { id: 'food', label: 'FOOD COUNT', panel: 'panelFood', stat: function () { return read(KEYS.food, []).length + ' days'; } },
+  { id: 'attendance', label: 'ATTENDANCE', panel: 'panelAttendance', stat: function () { return read(KEYS.attendance, []).filter((r) => r.date === todayKey()).length + ' today'; } },
+  { id: 'post', label: 'ANNOUNCEMENT', panel: 'panelPost', stat: function () { return (read(KEYS.mgmtNotices, []).length + read(KEYS.hrNotices, []).length) + ' published'; } },
+];
+const sectionsFor = (role) =>
+  role === 'hr' ? HR_SECTIONS
+    : role === 'manager' ? MANAGER_SECTIONS
+      : role === 'it' ? IT_SECTIONS
+        : role === 'finance' ? FINANCE_SECTIONS
+          : ADMIN_SECTIONS;
+let SECTIONS = sectionsFor(getRole());
+const RENDER = { attendance: renderAttendance, onboarding: renderOnboarding, food: renderFood, leave: renderLeave, notification: renderNotification, support: renderSupport, post: renderPost, hr: renderHR, polls: renderPolls };
+let supOpenId = null;
+let supDraft = '';
+let supSnapshot = '';
+let supStatus = '';
+
+const siteNowLabel = () =>
+  new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+  ' · ' +
+  new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+const readTickets = () => {
+  const raw = read(KEYS.tickets, []);
+  return Array.isArray(raw) ? raw : [];
+};
+
+const msgDiv = (m) =>
+  '<div class="msg' + (m.role === 'support' || m.role === 'management' ? ' mine' : '') + '">' +
+  '<div class="msg-name">' + escapeHtml(m.sender || m.role || 'User') + '</div>' +
+  '<div class="msg-body">' + escapeHtml(m.body) + '</div>' +
+  '<div class="msg-time">' + escapeHtml(m.time || '') + '</div></div>';
+
+function openSupportPage() {
+  supOpenId = null;
+  supDraft = '';
+  supSnapshot = '';
+  supStatus = '';
+  $('supportPage').style.display = 'block';
+  renderSupportPage(true);
+}
+
+function renderSupportPage(force) {
+  const tickets = readTickets();
+  const snap = JSON.stringify(tickets);
+  if (!force && snap === supSnapshot) return;
+  supSnapshot = snap;
+  const open = tickets.filter((t) => t.status === 'open').length;
+  const resolved = tickets.length - open;
+  $('supStats').innerHTML =
+    '<span class="stat-chip open">' + open + ' OPEN</span>' +
+    '<span class="stat-chip resolved">' + resolved + ' RESOLVED</span>' +
+    '<span class="stat-chip">' + tickets.length + ' TOTAL</span>';
+  $('supList').innerHTML = tickets.map((t) =>
+    '<div class="ticket-card ' + (t.status === 'open' ? 'open' : 'resolved') + (t.id === supOpenId ? ' active' : '') + '" data-id="' + t.id + '">' +
+    '<div class="ticket-head"><div class="ticket-subject">' + escapeHtml(t.subject) + '</div>' +
+    '<span class="badge ' + (t.status === 'resolved' ? 'resolved' : '') + '">' + (t.status === 'open' ? 'OPEN' : 'RESOLVED') + '</span></div>' +
+    '<div class="ticket-meta">From: ' + escapeHtml(t.from) + ' &middot; ' + escapeHtml(t.createdAt || '') + ' &middot; ' + (Array.isArray(t.messages) ? t.messages.length : 0) + ' message(s)</div>' +
+    '</div>'
+  ).join('') || emptyHTML('No tickets raised from the app yet.');
+  if (force) renderThread();
+  else renderThreadMsgs();
+}
+
+function renderThread() {
+  const t = readTickets().find((x) => x.id === supOpenId);
+  if (!t) {
+    $('supThread').innerHTML = '<div class="empty-card">Select a ticket to view and clear it.</div>';
+    return;
+  }
+  supStatus = t.status;
+  $('supThread').innerHTML =
+    '<div class="thread-card">' +
+    '<div class="ticket-head"><div class="ticket-subject">' + escapeHtml(t.subject) + '</div>' +
+    '<span class="badge ' + (t.status === 'resolved' ? 'resolved' : '') + '">' + (t.status === 'open' ? 'OPEN' : 'RESOLVED') + '</span></div>' +
+    '<div class="ticket-meta">From: ' + escapeHtml(t.from) + ' &middot; To: ' + escapeHtml(t.to || 'Support') + ' &middot; Raised: ' + escapeHtml(t.createdAt || '') + '</div>' +
+    '<div class="thread-msgs" id="supThreadMsgs"></div>' +
+    '</div>' +
+    '<div class="reply-card">' +
+    '<div class="field-label">REPLY TO USER</div>' +
+    '<textarea class="field-input" id="supReply" placeholder="Type your reply to clear the issue..."></textarea>' +
+    '<div class="ticket-actions">' +
+    '<button class="btn" id="supSend">Send Reply</button>' +
+    '<button class="btn" id="supToggle">' + (t.status === 'resolved' ? 'Reopen' : 'Mark Resolved') + '</button>' +
+    '</div></div>';
+  renderThreadMsgs();
+  const ta = $('supReply');
+  ta.value = supDraft;
+  ta.addEventListener('input', () => { supDraft = ta.value; });
+  $('supSend').addEventListener('click', sendReply);
+  $('supToggle').addEventListener('click', toggleStatus);
+}
+
+function renderThreadMsgs() {
+  const el = $('supThreadMsgs');
+  if (!el) return;
+  const t = readTickets().find((x) => x.id === supOpenId);
+  if (!t) {
+    el.innerHTML = '<div class="msg none">This ticket is no longer available.</div>';
+    return;
+  }
+  const msgs = Array.isArray(t.messages) ? t.messages : [];
+  el.innerHTML = msgs.map(msgDiv).join('') ||
+    '<div class="msg none">No messages in this ticket yet.</div>';
+  el.scrollTop = el.scrollHeight;
+}
+
+const sendReply = () => {
+  const ta = $('supReply');
+  if (!ta) return;
+  const body = ta.value.trim();
+  if (!body) return;
+  const tickets = readTickets();
+  const t = tickets.find((x) => x.id === supOpenId);
+  if (!t) return;
+  t.messages = Array.isArray(t.messages) ? t.messages : [];
+  t.messages.push({
+    id: 's' + Date.now(),
+    sender: 'IT Support Desk · ' + (getSiteName() || ROLE_LABEL[getRole()] || 'Admin'),
+    role: 'support',
+    body: body,
+    time: siteNowLabel(),
+  });
+  write(KEYS.tickets, tickets);
+  supDraft = '';
+  renderSupportPage(true);
+};
+
+const toggleStatus = () => {
+  const tickets = readTickets();
+  const t = tickets.find((x) => x.id === supOpenId);
+  if (!t) return;
+  t.status = t.status === 'resolved' ? 'open' : 'resolved';
+  write(KEYS.tickets, tickets);
+  renderSupportPage(true);
+};
+
+$('supList').addEventListener('click', (ev) => {
+  const card = ev.target.closest('.ticket-card');
+  if (!card) return;
+  supOpenId = card.dataset.id;
+  supDraft = '';
+  renderSupportPage(true);
+});
+
+$('supportBack').addEventListener('click', () => {
+  $('supportPage').style.display = 'none';
+});
+
+$('supRefresh').addEventListener('click', () => {
+  if ($('supportPage').style.display === 'block') renderSupportPage(true);
+});
+
+setInterval(() => {
+  if ($('supportPage').style.display !== 'block') return;
+  try {
+    const tickets = readTickets();
+    const snap = JSON.stringify(tickets);
+    if (snap === supSnapshot) return;
+    supSnapshot = snap;
+    const t = tickets.find((x) => x.id === supOpenId);
+    if (supOpenId && (!t || t.status !== supStatus)) renderSupportPage(true);
+    else renderThreadMsgs();
+  } catch (e) {
+    supSnapshot = '';
+  }
+}, 5000);
+
+let activeSection = SECTIONS[0].id;
+
+function buildKeys() {
+  $('keys').innerHTML = SECTIONS.map((s) =>
+    '<div class="key' + (s.id === activeSection ? ' active' : '') + '" data-id="' + s.id + '">' +
+    '<div class="key-label">' + s.label + '</div><div class="key-stat">' + s.stat() + '</div></div>'
+  ).join('');
+  $('keys').querySelectorAll('.key').forEach((el) => {
+    el.addEventListener('click', () => {
+      activeSection = el.dataset.id;
+      buildKeys();
+      if (activeSection === 'support') {
+        openSupportPage();
+        return;
+      }
+      renderAll();
+    });
+  });
+}
+
+function renderAll() {
+  SECTIONS.forEach((s) => $(s.panel).classList.toggle('show', s.id === activeSection));
+  RENDER[activeSection]();
+}
+
+function tick() {
+  $('clock').textContent = new Date().toLocaleString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit',
+  });
+}
+
+$('refreshBtn').addEventListener('click', () => { if (getRole()) { buildKeys(); renderAll(); } });
+
+function enterSite(role, name) {
+  setRole(role);
+  setSiteName(name);
+  SECTIONS = sectionsFor(role);
+  activeSection = SECTIONS[0].id;
+  $('roleChip').textContent = (ROLE_LABEL[role] || role) + (name ? ' &middot; ' + name : '');
+  $('supportPage').style.display = 'none';
+  $('loginScreen').style.display = 'none';
+  $('app').style.display = 'block';
+  buildKeys();
+  renderAll();
+}
+
+function showLogin() {
+  setRole('');
+  setSiteName('');
+  $('supportPage').style.display = 'none';
+  $('loginScreen').style.display = 'flex';
+  $('app').style.display = 'none';
+}
+
+$('loginBtn').addEventListener('click', () => {
+  const name = $('loginName').value.trim();
+  const email = $('loginEmail').value.trim().toLowerCase();
+  const pass = $('loginPass').value;
+  const role = $('loginRole').value;
+  if (!name) {
+    $('loginErr').textContent = 'Please enter your name.';
+    return;
+  }
+  const creds = SITE_CREDS[role];
+  if (creds && email === creds.email && pass === creds.pass) {
+    $('loginErr').textContent = '';
+    enterSite(role, name);
+  } else {
+    $('loginErr').textContent = 'Invalid ' + (ROLE_LABEL[role] || '') + ' email or password.';
+  }
+});
+
+$('logoutBtn').addEventListener('click', () => showLogin());
+
+getRole() ? enterSite(getRole(), getSiteName()) : showLogin();
+tick();
+setInterval(tick, 1000);
+setInterval(() => { if (getRole()) { buildKeys(); renderAll(); } }, 15000);
+</script>
+</body>
+</html>

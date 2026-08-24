@@ -1,0 +1,29 @@
+{
+  "users": [],
+  "employees": [],
+  "attendance": [],
+  "food_counts": [],
+  "leave_requests": {},
+  "tickets": [],
+  "notices": [
+    {
+      "id": "m1",
+      "title": "Welcome to KwOrKs Portal",
+      "body": "KwOrKs Enterprise portal is active. Please mark your biometric attendance and plan food counts.",
+      "date": "Aug 24, 2026",
+      "team": "ALL",
+      "category": "management"
+    }
+  ],
+  "birthdays": [],
+  "anniversaries": [],
+  "polls": [],
+  "claims": [],
+  "chat_messages": [],
+  "chat_groups": [],
+  "companies": [
+    "kanagamtech",
+    "amsems"
+  ],
+  "notifications": []
+}

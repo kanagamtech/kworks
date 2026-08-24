@@ -1,20 +1,338 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Animated, Easing, Image, Platform, StyleSheet, View } from 'react-native';
+import Text from './components/AppText';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SplashScreen from 'expo-splash-screen';
+import { useFonts, OpenSans_400Regular, OpenSans_600SemiBold, OpenSans_700Bold, OpenSans_800ExtraBold } from '@expo-google-fonts/open-sans';
+import MorningBackground from './components/MorningBackground';
+import SiteNotifications from './components/SiteNotifications';
+import { ThemeProvider } from './theme';
+import { useResponsive } from './hooks/useResponsive';
+import AttendanceScreen from './screens/AttendanceScreen';
+import FoodCountScreen from './screens/FoodCountScreen';
+import HomeScreen from './screens/HomeScreen';
+import SupportScreen from './screens/SupportScreen';
+import LeaveScreen from './screens/LeaveScreen';
+import LoginScreen from './screens/LoginScreen';
+import NotificationScreen from './screens/NotificationScreen';
+import ClaimsScreen from './screens/ClaimsScreen';
+import ChatScreen from './screens/ChatScreen';
 
-export default function App() {
+import type { UserProfile } from './types';
+
+if (__DEV__) {
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    if (typeof args[0] === 'string' && args[0].includes('Cannot record touch end without a touch start')) {
+      return;
+    }
+    originalWarn(...args);
+  };
+}
+
+if (Platform.OS === 'web' && typeof window !== 'undefined') {
+  try {
+    const { protocol, hostname, host, pathname, search } = window.location;
+    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+    if (protocol === 'http:' && !isLocal) {
+      window.location.replace(`https://${host}${pathname}${search}`);
+    }
+  } catch {}
+}
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
+const useNativeDriver = Platform.OS !== 'web';
+const USER_STORAGE_KEY = 'kworks_user_profile';
+
+const BRAND = {
+  primary: '#D7AB6A',
+  primaryLight: '#D7AB6A',
+  primaryDark: '#31122B',
+  bgTop: '#31122B',
+  bgMain: '#31122B',
+  bgDeep: 'rgba(20,7,17,0.62)',
+  text: '#FFFFFF',
+  textDim: '#CBAF8C',
+};
+
+const LOGO_DELAY_MS = 1200;
+const LOGO_FADE_MS = 800;
+const LOGO_HOLD_MS = 500;
+const SPLASH_FADE_MS = 500;
+
+function Screen({ children, onOpenNotifications }: { children: ReactNode; onOpenNotifications?: () => void }) {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
+    <View style={styles.screen}>
+      <StatusBar style="light" />
+      <MorningBackground />
+      {children}
+      {onOpenNotifications ? <SiteNotifications onOpen={onOpenNotifications} /> : null}
     </View>
   );
 }
 
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppInner />
+    </ThemeProvider>
+  );
+}
+
+function AppInner() {
+  const { scale, width } = useResponsive();
+  const [fontsLoaded, fontError] = useFonts({ OpenSans_400Regular, OpenSans_600SemiBold, OpenSans_700Bold, OpenSans_800ExtraBold });
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const logoScale = useRef(new Animated.Value(0.85)).current;
+  const contentOpacity = useRef(new Animated.Value(0)).current;
+  const splashOpacity = useRef(new Animated.Value(1)).current;
+  const [showHome, setShowHome] = useState(false);
+  const [screen, setScreen] = useState<'home' | 'login' | 'attendance' | 'foodcount' | 'leave' | 'notifications' | 'support' | 'claims' | 'chat'>('home');
+  const [user, setUser] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem(USER_STORAGE_KEY)
+      .then((raw) => {
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw);
+            setUser(parsed);
+            setScreen('home');
+          } catch {
+            setUser(null);
+            setScreen('login');
+          }
+        } else {
+          setUser(null);
+          setScreen('login');
+        }
+      })
+      .catch(() => {
+        setUser(null);
+        setScreen('login');
+      });
+  }, []);
+
+  const handleSaveUser = (profile: UserProfile) => {
+    setUser(profile);
+    AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(profile)).catch(() => {});
+    setScreen('home');
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    AsyncStorage.removeItem(USER_STORAGE_KEY).catch(() => {});
+    AsyncStorage.removeItem('kworks_last_attendance_time').catch(() => {});
+    setScreen('login');
+  };
+
+  const AppScreen = ({ children }: { children: ReactNode }) => (
+    <Screen onOpenNotifications={() => setScreen('notifications')}>{children}</Screen>
+  );
+
+  useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    timers.push(
+      setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(logoOpacity, {
+            toValue: 1,
+            duration: LOGO_FADE_MS,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver,
+          }),
+          Animated.timing(logoScale, {
+            toValue: 1,
+            duration: LOGO_FADE_MS,
+            easing: Easing.out(Easing.back(1.5)),
+            useNativeDriver,
+          }),
+        ]).start();
+        Animated.timing(contentOpacity, {
+          toValue: 1,
+          duration: LOGO_FADE_MS,
+          delay: 200,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver,
+        }).start();
+        SplashScreen.hideAsync().catch(() => {});
+      }, LOGO_DELAY_MS)
+    );
+    timers.push(
+      setTimeout(() => {
+        Animated.timing(splashOpacity, {
+          toValue: 0,
+          duration: SPLASH_FADE_MS,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver,
+        }).start(() => setShowHome(true));
+      }, LOGO_DELAY_MS + LOGO_FADE_MS + LOGO_HOLD_MS)
+    );
+    return () => timers.forEach(clearTimeout);
+  }, [logoOpacity, logoScale, contentOpacity, splashOpacity]);
+
+  if (!fontsLoaded && !fontError) {
+    return (
+      <View style={styles.container}>
+        <StatusBar style="light" />
+        <MorningBackground />
+        <Image source={require('./assets/images/logo-kanagam.png')} style={{ width: Math.min(300, width * 0.7) * scale, height: Math.min(300, width * 0.7) * scale }} resizeMode="contain" />
+      </View>
+    );
+  }
+
+  if (screen === 'attendance') {
+    return (
+      <AppScreen>
+        <AttendanceScreen
+          onDone={() => setScreen('home')}
+          onFoodCount={() => setScreen('foodcount')}
+          user={user}
+          onLogout={handleLogout}
+        />
+      </AppScreen>
+    );
+  }
+
+  if (screen === 'foodcount') {
+    return (
+      <AppScreen>
+        <FoodCountScreen onBack={() => setScreen('attendance')} onSubmit={() => setScreen('home')} user={user} />
+      </AppScreen>
+    );
+  }
+
+  if (screen === 'leave') {
+    return (
+      <AppScreen>
+        <LeaveScreen onBack={() => setScreen('home')} user={user} />
+      </AppScreen>
+    );
+  }
+
+  if (screen === 'notifications') {
+    return (
+      <AppScreen>
+        <NotificationScreen onBack={() => setScreen('home')} />
+      </AppScreen>
+    );
+  }
+
+  if (screen === 'support') {
+    return (
+      <AppScreen>
+        <SupportScreen onBack={() => setScreen('home')} user={user} />
+      </AppScreen>
+    );
+  }
+
+  if (screen === 'login') {
+    return (
+      <AppScreen>
+        <LoginScreen
+          user={user}
+          onSave={handleSaveUser}
+          onBack={() => {
+            if (user) {
+              setScreen('home');
+            }
+          }}
+          onLogout={handleLogout}
+        />
+      </AppScreen>
+    );
+  }
+
+  if (screen === 'claims') {
+    return (
+      <AppScreen>
+        <ClaimsScreen onBack={() => setScreen('home')} user={user} />
+      </AppScreen>
+    );
+  }
+
+  if (screen === 'chat') {
+    return (
+      <AppScreen>
+        <ChatScreen onBack={() => setScreen('home')} user={user} />
+      </AppScreen>
+    );
+  }
+
+  if (showHome) {
+    if (!user) {
+      return (
+        <AppScreen>
+          <LoginScreen user={user} onSave={handleSaveUser} onBack={() => {}} onLogout={handleLogout} />
+        </AppScreen>
+      );
+    }
+    return (
+      <AppScreen>
+        <HomeScreen user={user} onLoginPress={() => setScreen('login')} onOpenAttendance={() => setScreen('attendance')} onOpenLeave={() => setScreen('leave')} onOpenNotifications={() => setScreen('notifications')} onOpenSupport={() => setScreen('support')} onOpenClaims={() => setScreen('claims')} onOpenChat={() => setScreen('chat')} />
+      </AppScreen>
+    );
+  }
+
+  return (
+    <Animated.View style={[styles.container, { opacity: splashOpacity }]}>
+      <StatusBar style="light" />
+      <MorningBackground />
+      <Animated.View style={{ opacity: logoOpacity, transform: [{ scale: logoScale }] }}>
+        <Image source={require('./assets/images/logo-kanagam.png')} style={{ width: Math.min(300, width * 0.7) * scale, height: Math.min(300, width * 0.7) * scale }} resizeMode="contain" />
+      </Animated.View>
+      <Animated.View style={[styles.textBlock, { opacity: contentOpacity }]}>
+        <Text style={styles.tagline}>Work that moves forward</Text>
+        <View style={styles.dotRow}>
+          <View style={[styles.dot, styles.dotActive]} />
+          <View style={styles.dot} />
+          <View style={styles.dot} />
+        </View>
+      </Animated.View>
+    </Animated.View>
+  );
+}
+
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  logo: {
+    width: 300,
+    height: 300,
+  },
+  textBlock: {
+    alignItems: 'center',
+  },
+  tagline: {
+    marginTop: 16,
+    fontSize: 18,
+    letterSpacing: 1.2,
+    color: BRAND.textDim,
+    fontWeight: '600',
+  },
+  dotRow: {
+    flexDirection: 'row',
+    marginTop: 32,
+    gap: 8,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: BRAND.primaryDark,
+  },
+  dotActive: {
+    backgroundColor: BRAND.primary,
   },
 });

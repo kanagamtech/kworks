@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>KwOrKs HR &amp; Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --primary: #D7AB6A;
+    --primary-light: #E8C98F;
+    --primary-dark: #4B1D3F;
+    --ink: #4B1D3F;
+    --text: #3A1C31;
+    --dim: #9C7B4E;
+    --bg: #FBF5EC;
+    --card: #FFFFFF;
+    --card-border: #E4CEA8;
+    --line: #EAD9BC;
+    --success: #C9A15E;
+    --warn: #E08A8A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Open Sans', 'Segoe UI', sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    min-height: 100vh;
+  }
+  .app { padding: 18px; width: 100%; min-height: 100vh; max-width: 900px; margin: 0 auto; }
+  header { margin-bottom: 18px; }
+  .site-title { font-size: 24px; font-weight: 800; letter-spacing: 1px; color: var(--primary); }
+  .site-sub { color: var(--ink); font-size: 13px; margin-top: 4px; font-weight: 400; }
+  .site-note {
+    margin-top: 12px;
+    background: #F7EFE2;
+    border: 2px solid var(--primary-light);
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-size: 12.5px;
+    color: var(--text);
+    line-height: 18px;
+  }
+  .cols { display: flex; flex-wrap: wrap; gap: 16px; }
+  .col { flex: 1 1 320px; min-width: 280px; }
+  .form-card {
+    background: var(--card);
+    border: 2px solid var(--card-border);
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 12px rgba(152,64,99,0.10);
+  }
+  .form-card:nth-child(1) .form-title { color: var(--primary); }
+  .form-card:nth-child(2) .form-title { color: var(--primary-dark); }
+  .form-title { font-size: 14px; font-weight: 800; letter-spacing: 1px; color: var(--ink); margin-bottom: 14px; }
+  .field-label { font-size: 11px; font-weight: 400; letter-spacing: 1.2px; color: var(--ink); margin: 12px 0 6px; }
+  .field-label:first-child { margin-top: 0; }
+  .field-input {
+    width: 100%;
+    background: #FFFDFB;
+    border: 2px solid var(--line);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 14px;
+    padding: 11px 13px;
+    outline: none;
+    font-family: inherit;
+  }
+  .field-input:focus { border-color: var(--primary-light); }
+  .field-input::placeholder { color: #C9A2B8; }
+  textarea.field-input { min-height: 90px; resize: vertical; }
+  .form-row { display: flex; gap: 12px; }
+  .form-row .form-col { flex: 1; }
+  .file-btn {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    background: #F7EFE2;
+    border: 2px dashed var(--primary-light);
+    border-radius: 10px;
+    color: var(--primary);
+    font-size: 13px;
+    font-weight: 400;
+    padding: 13px;
+    cursor: pointer;
+    text-align: center;
+  }
+  .file-preview { width: 64px; height: 64px; border-radius: 32px; object-fit: cover; border: 3px solid var(--primary-light); margin-top: 12px; display: block; }
+  .btn {
+    width: 100%;
+    margin-top: 16px;
+    background: var(--primary);
+    border: none;
+    border-radius: 12px;
+    color: #4B1D3F;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    padding: 13px;
+    cursor: pointer;
+  }
+  .btn:hover { background: var(--primary-dark); color: #FFFFFF; }
+  .save-ok { color: var(--success); font-size: 12.5px; margin-top: 10px; min-height: 16px; text-align: center; }
+  .list-title { font-size: 12px; font-weight: 800; letter-spacing: 1.2px; color: var(--ink); margin: 18px 0 8px; }
+  .uploaded-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .uploaded-thumb { width: 40px; height: 40px; border-radius: 20px; object-fit: cover; border: 2px solid var(--primary-light); }
+  .dot { width: 40px; height: 40px; border-radius: 20px; background: var(--primary-light); }
+  .uploaded-info { flex: 1; min-width: 0; }
+  .uploaded-name { font-size: 13px; font-weight: 800; color: var(--ink); }
+  .uploaded-sub { font-size: 11.5px; color: var(--dim); margin-top: 2px; }
+  .uploaded-del { background: transparent; border: none; color: var(--warn); font-size: 17px; cursor: pointer; padding: 4px 8px; font-weight: 700; }
+  .empty { color: var(--dim); font-style: italic; font-size: 12.5px; text-align: center; margin-top: 10px; }
+  .mail-card {
+    border: 2px solid var(--line);
+    border-radius: 12px;
+    background: #FFFDFB;
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+  .mail-subject { font-weight: 800; font-size: 13px; color: var(--primary); }
+  .mail-meta { color: var(--dim); font-size: 11.5px; margin-top: 5px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <div class="site-title">KwOrKs HR &amp; Manager</div>
+    <div class="site-sub">Upload birthday photos, work anniversaries and HR / manager information</div>
+    <div class="site-note">This site is used only to upload celebration details and information for employees. Birthdays, anniversaries and notices uploaded here appear in the management dashboard and in every employee's app notification page.</div>
+  </header>
+
+  <div class="cols">
+    <div class="col">
+      <div class="form-card">
+        <div class="form-title">BIRTHDAY — UPLOAD WITH PHOTO</div>
+        <div class="field-label">EMPLOYEE NAME</div>
+        <input class="field-input" id="bName" placeholder="e.g. Suresh Kumar" />
+        <div class="form-row">
+          <div class="form-col">
+            <div class="field-label">MONTH</div>
+            <input class="field-input" id="bMonth" placeholder="e.g. 8" type="number" min="1" max="12" />
+          </div>
+          <div class="form-col">
+            <div class="field-label">DAY</div>
+            <input class="field-input" id="bDay" placeholder="e.g. 14" type="number" min="1" max="31" />
+          </div>
+        </div>
+        <div class="field-label">PHOTO</div>
+        <input type="file" id="bPhoto" accept="image/*" class="file-btn" />
+        <img id="bPhotoPreview" class="file-preview" style="display:none" alt="" />
+        <button class="btn" id="bSave">Upload Birthday</button>
+        <div class="save-ok" id="bStatus"></div>
+        <div class="list-title">Uploaded birthdays</div>
+        <div id="bList"></div>
+      </div>
+
+      <div class="form-card">
+        <div class="form-title">WORK ANNIVERSARY</div>
+        <div class="field-label">EMPLOYEE NAME</div>
+        <input class="field-input" id="aName" placeholder="e.g. Lakshmi Devi" />
+        <div class="form-row">
+          <div class="form-col">
+            <div class="field-label">JOIN MONTH</div>
+            <input class="field-input" id="aMonth" placeholder="e.g. 8" type="number" min="1" max="12" />
+          </div>
+          <div class="form-col">
+            <div class="field-label">JOIN DAY</div>
+            <input class="field-input" id="aDay" placeholder="e.g. 21" type="number" min="1" max="31" />
+          </div>
+        </div>
+        <div class="field-label">JOIN YEAR</div>
+        <input class="field-input" id="aYear" placeholder="e.g. 2019" type="number" min="1990" max="2030" />
+        <button class="btn" id="aSave">Add Anniversary</button>
+        <div class="save-ok" id="aStatus"></div>
+        <div class="list-title">Uploaded anniversaries</div>
+        <div id="aList"></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="form-card">
+        <div class="form-title">HR &amp; MANAGER INFORMATION</div>
+        <div class="field-label">TITLE</div>
+        <input class="field-input" id="nTitle" placeholder="e.g. Medical insurance renewal" />
+        <div class="field-label">MESSAGE</div>
+        <textarea class="field-input" id="nBody" placeholder="Write the information employees should know..."></textarea>
+        <div class="field-label">DATE</div>
+        <input class="field-input" id="nDate" placeholder="e.g. Aug 20, 2026" />
+        <button class="btn" id="nSave">Publish Information</button>
+        <div class="save-ok" id="nStatus"></div>
+        <div class="list-title">Published information</div>
+        <div id="nList"></div>
+      </div>
+
+      <div class="form-card">
+        <div class="form-title">EMPLOYEE ONBOARDING &amp; FACE REGISTRATION</div>
+        <div class="field-label">FULL NAME</div>
+        <input class="field-input" id="eName" placeholder="e.g. Anand Kumar" />
+        <div class="field-label">EMAIL ADDRESS</div>
+        <input class="field-input" id="eEmail" placeholder="e.g. anand@kanagam.tech" />
+        <div class="form-row">
+          <div class="form-col">
+            <div class="field-label">ROLE</div>
+            <input class="field-input" id="eRole" placeholder="e.g. Software Engineer" />
+          </div>
+          <div class="form-col">
+            <div class="field-label">DEPARTMENT</div>
+            <input class="field-input" id="eDept" placeholder="e.g. Engineering" />
+          </div>
+        </div>
+        <div class="field-label">FACE PHOTO FOR ATTENDANCE MATCHING</div>
+        <input type="file" id="ePhoto" accept="image/*" class="file-btn" />
+        <img id="ePhotoPreview" class="file-preview" style="display:none" alt="" />
+        <button class="btn" id="eSave">Onboard Employee &amp; Register Face</button>
+        <div class="save-ok" id="eStatus"></div>
+        <div class="list-title">Onboarded employees</div>
+        <div class="field-label">SEARCH EMPLOYEE</div>
+        <input class="field-input" id="eSearch" placeholder="Search by name, email, role, or department..." style="margin-bottom:12px" />
+        <div id="eListCount" style="font-size:12px;color:#9C7B4E;margin-bottom:10px;font-weight:700"></div>
+        <div id="eList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const KEYS = {
+  birthdays: 'kworks_birthdays',
+  anniversaries: 'kworks_anniversaries',
+  hrNotices: 'kworks_hr_notices',
+  employees: 'kworks_onboarded_employees',
+};
+const read = (key, fallback) => {
+  try {
+    const v = localStorage.getItem(key);
+    return v ? JSON.parse(v) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+const write = (key, value) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {}
+};
+const $ = (id) => document.getElementById(id);
+const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const monthName = (m) => { const d = new Date(2020, Number(m) - 1, 1); return d.toLocaleDateString('en-US', { month: 'long' }); };
+const todayLabel = () => new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+const itemHTML = (thumb, name, sub, delId) =>
+  '<div class="uploaded-item">' + thumb +
+  '<div class="uploaded-info"><div class="uploaded-name">' + escapeHtml(name) + '</div>' +
+  '<div class="uploaded-sub">' + escapeHtml(sub) + '</div></div>' +
+  '<button class="uploaded-del" data-del="' + delId + '" title="Delete">&times;</button></div>';
+
+const thumbHTML = (photo) =>
+  photo ? '<img class="uploaded-thumb" src="' + photo + '" alt="" />' : '<div class="dot"></div>';
+
+function renderBirthdays() {
+  const list = read(KEYS.birthdays, []);
+  $('bList').innerHTML = list.map((b) =>
+    itemHTML(thumbHTML(b.photo), b.name, 'Birthday — ' + monthName(b.month) + ' ' + b.day, b.id)
+  ).join('') || '<div class="empty">No birthdays uploaded yet.</div>';
+  document.querySelectorAll('#bList [data-del]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      write(KEYS.birthdays, read(KEYS.birthdays, []).filter((b) => b.id !== btn.dataset.del));
+      renderBirthdays();
+    });
+  });
+}
+
+function renderAnniversaries() {
+  const list = read(KEYS.anniversaries, []);
+  $('aList').innerHTML = list.map((a) =>
+    itemHTML('<div class="dot"></div>', a.name, 'Work Anniversary — ' + monthName(a.month) + ' ' + a.day + ', ' + a.year, a.id)
+  ).join('') || '<div class="empty">No anniversaries uploaded yet.</div>';
+  document.querySelectorAll('#aList [data-del]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      write(KEYS.anniversaries, read(KEYS.anniversaries, []).filter((a) => a.id !== btn.dataset.del));
+      renderAnniversaries();
+    });
+  });
+}
+
+function renderNotices() {
+  const list = read(KEYS.hrNotices, []);
+  $('nList').innerHTML = list.map((n) =>
+    '<div class="mail-card"><div class="mail-subject">' + escapeHtml(n.title) + '</div>' +
+    '<div class="mail-meta">' + escapeHtml(n.body) + '</div><div class="mail-meta">' + escapeHtml(n.date || '') + '</div>' +
+    '<button class="uploaded-del" data-del="' + n.id + '" style="margin-top:6px" title="Delete">&times; Remove</button></div>'
+  ).join('') || '<div class="empty">No information published yet.</div>';
+  document.querySelectorAll('#nList [data-del]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      write(KEYS.hrNotices, read(KEYS.hrNotices, []).filter((n) => n.id !== btn.dataset.del));
+      renderNotices();
+    });
+  });
+}
+
+let eSearchQuery = '';
+
+function renderEmployees() {
+  const list = read(KEYS.employees, []);
+  const query = eSearchQuery.toLowerCase().trim();
+  const filtered = list.filter((e) =>
+    !query ||
+    (e.name && e.name.toLowerCase().includes(query)) ||
+    (e.email && e.email.toLowerCase().includes(query)) ||
+    (e.role && e.role.toLowerCase().includes(query)) ||
+    (e.department && e.department.toLowerCase().includes(query)) ||
+    (e.id && e.id.toLowerCase().includes(query))
+  );
+
+  if ($('eListCount')) {
+    $('eListCount').textContent = 'Showing ' + filtered.length + ' of ' + list.length + ' onboarded employee(s)';
+  }
+
+  if ($('eList')) {
+    $('eList').innerHTML = filtered.map((e) =>
+      itemHTML(thumbHTML(e.photo), e.name, (e.role || 'Employee') + (e.department ? ' · ' + e.department : '') + ' · ' + e.email, e.id)
+    ).join('') || '<div class="empty">' + (query ? 'No matching employees found.' : 'No employees onboarded yet.') + '</div>';
+    document.querySelectorAll('#eList [data-del]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        write(KEYS.employees, read(KEYS.employees, []).filter((e) => e.id !== btn.dataset.del));
+        renderEmployees();
+      });
+    });
+  }
+}
+
+if ($('eSearch')) {
+  $('eSearch').addEventListener('input', (ev) => {
+    eSearchQuery = ev.target.value;
+    renderEmployees();
+  });
+}
+
+$('bPhoto').addEventListener('change', (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    $('bPhotoPreview').src = ev.target.result;
+    $('bPhotoPreview').style.display = 'block';
+    window.__bPhotoData = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+$('bSave').addEventListener('click', () => {
+  const name = $('bName').value.trim();
+  const month = parseInt($('bMonth').value, 10);
+  const day = parseInt($('bDay').value, 10);
+  if (!name || !month || !day || month < 1 || month > 12 || day < 1 || day > 31) {
+    $('bStatus').textContent = 'Please enter name and a valid month and day.';
+    return;
+  }
+  const list = read(KEYS.birthdays, []);
+  list.unshift({ id: 'b' + Date.now(), name: name, month: String(month), day: String(day), photo: window.__bPhotoData || null, role: 'Birthday' });
+  write(KEYS.birthdays, list.slice(0, 50));
+  $('bName').value = ''; $('bMonth').value = ''; $('bDay').value = '';
+  $('bPhoto').value = ''; $('bPhotoPreview').style.display = 'none'; window.__bPhotoData = null;
+  $('bStatus').textContent = 'Birthday uploaded successfully.';
+  renderBirthdays();
+});
+
+$('aSave').addEventListener('click', () => {
+  const name = $('aName').value.trim();
+  const month = parseInt($('aMonth').value, 10);
+  const day = parseInt($('aDay').value, 10);
+  const year = parseInt($('aYear').value, 10);
+  if (!name || !month || !day || !year || month < 1 || month > 12 || day < 1 || day > 31 || year < 1990 || year > 2030) {
+    $('aStatus').textContent = 'Please enter name and a valid join date.';
+    return;
+  }
+  const list = read(KEYS.anniversaries, []);
+  list.unshift({ id: 'a' + Date.now(), name: name, month: String(month), day: String(day), year: String(year) });
+  write(KEYS.anniversaries, list.slice(0, 50));
+  $('aName').value = ''; $('aMonth').value = ''; $('aDay').value = ''; $('aYear').value = '';
+  $('aStatus').textContent = 'Anniversary added successfully.';
+  renderAnniversaries();
+});
+
+$('nSave').addEventListener('click', () => {
+  const title = $('nTitle').value.trim();
+  const body = $('nBody').value.trim();
+  if (!title || !body) {
+    $('nStatus').textContent = 'Please enter a title and message.';
+    return;
+  }
+  const list = read(KEYS.hrNotices, []);
+  list.unshift({ id: 'n' + Date.now(), title: title, body: body, date: $('nDate').value.trim() || todayLabel() });
+  write(KEYS.hrNotices, list.slice(0, 40));
+  $('nTitle').value = ''; $('nBody').value = ''; $('nDate').value = '';
+  $('nStatus').textContent = 'Information published successfully.';
+  renderNotices();
+});
+
+renderBirthdays();
+renderAnniversaries();
+renderNotices();
+</script>
+</body>
+</html>
