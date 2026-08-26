@@ -1,4 +1,4 @@
-const RAW_URL = ((import.meta as any).env?.VITE_API_URL || 'http://localhost:5000').trim().replace(/\/+$/, '');
+const RAW_URL = ((import.meta as any).env?.VITE_API_URL || 'https://wkorksb.kanagamtech.com').trim().replace(/\/+$/, '');
 const API_BASE = RAW_URL.endsWith('/api') ? RAW_URL : `${RAW_URL}/api`;
 
 export const api = {

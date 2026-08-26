@@ -323,6 +323,6 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`[KwOrKs Backend Server] Running on http://localhost:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`[KwOrKs Backend Server] Running on port ${PORT} (0.0.0.0)`);
 });
