@@ -151,11 +151,12 @@ const server = http.createServer(async (req, res) => {
         }
 
         const MGMT_USERS = {
-          admin: { email: 'admin@kworks.com', pass: 'admin123' },
-          manager: { email: 'manager@kworks.com', pass: 'manager123' },
-          hr: { email: 'hr@kworks.com', pass: 'hr123' },
-          it: { email: 'itsupport@kworks.com', pass: 'itsupport123' },
-          finance: { email: 'finance@kworks.com', pass: 'finance123' },
+          super_admin: { email: 'superadmin@kworks.com', pass: 'SuperAdmin@2026!' },
+          admin: { email: 'admin@kworks.com', pass: 'Admin@2026!' },
+          manager: { email: 'manager@kworks.com', pass: 'Manager@2026!' },
+          hr: { email: 'hr@kworks.com', pass: 'HR@2026!' },
+          it: { email: 'itsupport@kworks.com', pass: 'ITSupport@2026!' },
+          finance: { email: 'finance@kworks.com', pass: 'Finance@2026!' },
         };
 
         const cred = MGMT_USERS[role];
