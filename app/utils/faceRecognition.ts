@@ -58,7 +58,7 @@ const GRAD_BLOCKS = 4;
 const GRAD_BLOCK_SIZE = FACE_SIZE / GRAD_BLOCKS; // 16x16 pixels
 
 /** Acceptance threshold for combined biometric similarity (0.0 to 1.0) */
-const MATCH_THRESHOLD = 0.60;
+const MATCH_THRESHOLD = 0.78;
 
 // ── Uniform LBP Lookup Table (59 uniform bins) ─────────────────────────────────
 const UNIFORM_LBP_TABLE = new Uint8Array(256);

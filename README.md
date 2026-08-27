@@ -4,7 +4,7 @@ KwOrKs is a full-stack, enterprise workforce management suite featuring biometri
 
 ---
 
-## 🏗️ 3-Folder Architecture
+## 🏗️ 4-Folder Architecture
 
 ```text
 KwOrK/
@@ -13,33 +13,33 @@ KwOrK/
 │   ├── screens/                # Mobile app screens (Attendance, Login, Profile, etc.)
 │   ├── components/             # Reusable UI components
 │   ├── utils/                  # Biometrics, Face Recognition, GPS Location
-│   ├── assets/                 # App icons, splash screens, and logos
-│   ├── app.json                # Expo configuration
-│   ├── eas.json                # EAS Mobile build configuration
 │   └── package.json            # App dependencies
 │
-├── backend/                    # ⚙️ REST API & MongoDB Database Server
+├── backend/                    # ⚙️ REST API & MongoDB Database Server (Port 5000)
 │   ├── db/                     # Mongoose schemas & JSON fallback
 │   ├── routes/                 # REST API route handlers
 │   ├── server.js               # Node.js API server
-│   ├── Dockerfile              # Dockerfile for Coolify VPS deployment
-│   ├── .env.example            # Environment variables template
 │   └── package.json            # Backend dependencies
 │
-└── site/                       # 🌐 Management Web Portal (React + Vite)
-    ├── src/                    # Web Portal pages (Onboarding, Attendance, Leaves)
-    ├── hr/                     # HR Portal static routes
-    ├── management/             # Management Portal static routes
-    ├── Dockerfile              # Production Dockerfile (Nginx)
-    ├── nginx.conf              # SPA Nginx routing configuration
-    ├── tsconfig.json           # Vite TypeScript configuration
-    └── package.json            # Site dependencies
+├── site/                       # 🌐 Management & HR Web Portal (Port 3000)
+│   ├── src/                    # Web Portal pages (Onboarding, Attendance, Leaves)
+│   └── package.json            # Site dependencies
+│
+└── crm/                        # 💼 Enterprise CRM, Email Engine & Automations (Port 3001 & 5001)
+    ├── backend/                # Mongoose CRM schemas, Email engine & Workflow triggers
+    ├── site/                   # React CRM Portal (Deals, Leads, Contacts, Inbox, Reports)
+    └── README.md               # CRM specific architecture & documentation
 ```
 
 ---
 
 ## 🌟 Key Features
 
+- **💼 CRM & Automation Suite (`/crm`)**:
+  - Full-stack MERN CRM with KwOrKs luxury wine/gold enterprise UI/UX.
+  - Complete email send & receive client with customer auto-identification, threading, and attachments.
+  - Automated workflow triggers (Welcome emails on new lead, quote dispatch on deal creation, onboarding on deal won, 3-day inactivity follow-ups, and public webhook form ingestion).
+  - Visual Kanban Pipeline board, 360° customer communication histories, and analytics dashboards.
 - **📱 Mobile App (`/app`)**:
   - High-precision facial recognition with anti-spoofing and spectacles-invariance.
   - Real-time GPS location lock with satellite accuracy metering.

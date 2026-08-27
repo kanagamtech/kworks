@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   AppState,
   Image,
   Linking,
@@ -22,6 +23,7 @@ import { getRealGPSLocation, type RealGPSData } from '../utils/locationName';
 import { saveAttendanceRecord, todayKey } from '../utils/records';
 import { API_BASE } from '../utils/config';
 import { verifyFaceMatch } from '../utils/faceRecognition';
+import { checkInternetConnection, isOnline, subscribeToNetworkChanges, type NetworkState } from '../utils/network';
 import type { UserProfile } from '../types';
 
 const BRAND = {
@@ -36,6 +38,7 @@ const BRAND = {
   danger: '#E05050',
   dangerGlow: 'rgba(224, 80, 80, 0.25)',
   goldGlow: 'rgba(215, 171, 106, 0.25)',
+  error: '#E05050',
 };
 
 type Props = {
@@ -81,6 +84,16 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
 
   // Database of Registered Employees
   const [registeredEmployees, setRegisteredEmployees] = useState<any[]>([]);
+
+  // Network State
+  const [networkState, setNetworkState] = useState<NetworkState>({
+    isConnected: false,
+    isInternetReachable: null,
+    type: 'unknown',
+    details: null,
+  });
+  const [isNetworkChecked, setIsNetworkChecked] = useState(false);
+  const [networkError, setNetworkError] = useState<string | null>(null);
 
   // Viewport Geometry
   const size = Math.min(width * 0.76, 320);
@@ -171,6 +184,32 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
     }
   }, [user]);
 
+  // ── Network Connectivity Check ───────────────────────────────────────────────
+  useEffect(() => {
+    const checkNetwork = async () => {
+      const state = await checkInternetConnection();
+      setNetworkState(state);
+      setIsNetworkChecked(true);
+      if (!isOnline(state)) {
+        setNetworkError('🌐 No internet connection. Attendance requires online verification.');
+      } else {
+        setNetworkError(null);
+      }
+    };
+    checkNetwork();
+
+    const unsubscribe = subscribeToNetworkChanges((state) => {
+      setNetworkState(state);
+      if (isOnline(state)) {
+        setNetworkError(null);
+      } else {
+        setNetworkError('🌐 Internet connection lost. Attendance requires online verification.');
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   // ── 3. High-Precision Real GPS Location Fetcher ────────────────────────────
   const fetchLocation = async () => {
     try {
@@ -239,6 +278,18 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
   // ── 5. Biometric Face Verification & Attendance Punch-In ────────────────────
   const handleMarkAttendance = async () => {
     if (done || scanning || !cameraReady || !permission?.granted) return;
+
+    if (!isNetworkChecked) {
+      setStatus('Checking network connection...');
+      return;
+    }
+
+    if (!isOnline(networkState)) {
+      setStatus('🌐 No internet connection. Attendance requires online verification.');
+      Alert.alert('Network Required', 'Internet connection is required for biometric attendance verification. Please check your connection and try again.');
+      return;
+    }
+
     setScanning(true);
     setProgress(0.25);
     setStatus('Capturing high-resolution biometric frame...');
@@ -644,6 +695,15 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
             </View>
           ) : !punchedOut ? (
             <View style={styles.scanningControls}>
+              <View style={styles.networkStatusBar}>
+                <Text style={[
+                  styles.networkStatusText,
+                  { color: isOnline(networkState) ? BRAND.success : BRAND.error }
+                ]}>
+                  {isOnline(networkState) ? '● Online - Server Connected' : '● Offline - Internet Required'}
+                </Text>
+              </View>
+              {networkError && <Text style={styles.networkErrorText}>{networkError}</Text>}
               <Text style={styles.statusMsg}>{status}</Text>
               {scanning && (
                 <View style={styles.scanningProgressRow}>
@@ -657,8 +717,9 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
                   styles.markAttendanceBtn,
                   scanning && styles.markAttendanceBtnScanning,
                   !readyToScan && styles.markAttendanceBtnDisabled,
+                  !isOnline(networkState) && styles.markAttendanceBtnDisabled,
                 ]}
-                disabled={!readyToScan || scanning}
+                disabled={!readyToScan || scanning || !isOnline(networkState)}
                 onPress={handleMarkAttendance}
               >
                 <Text style={styles.markAttendanceBtnText}>
@@ -1056,6 +1117,31 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     letterSpacing: 1.2,
+  },
+  networkStatusBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(215,171,106,0.3)',
+    backgroundColor: 'rgba(215,171,106,0.1)',
+    marginBottom: 12,
+    width: '100%',
+  },
+  networkStatusText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  networkErrorText: {
+    color: BRAND.error,
+    fontSize: 12.5,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 8,
+    fontWeight: '600',
   },
   successCard: {
     alignItems: 'center',

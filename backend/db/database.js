@@ -1,8 +1,38 @@
 const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcryptjs');
 const { connectMongoDB, getIsConnected, Models } = require('./mongo');
 
 const DB_FILE = path.join(__dirname, 'kworks_db.json');
+
+async function hashPassword(password) {
+  return bcrypt.hash(password, 12);
+}
+
+async function verifyPassword(password, hash) {
+  return bcrypt.compare(password, hash);
+}
+
+async function seedManagementUsers() {
+  const users = [
+    { id: 'mu_super', email: 'superadmin@kworks.com', password: 'SuperAdmin@2026!', role: 'super_admin', name: 'Super Administrator', department: 'IT', created_at: new Date().toISOString() },
+    { id: 'mu_admin', email: 'admin@kworks.com', password: 'Admin@2026!', role: 'admin', name: 'System Admin', department: 'IT', created_at: new Date().toISOString() },
+    { id: 'mu_manager', email: 'manager@kworks.com', password: 'Manager@2026!', role: 'manager', name: 'General Manager', department: 'Management', created_at: new Date().toISOString() },
+    { id: 'mu_hr', email: 'hr@kworks.com', password: 'HR@2026!', role: 'hr', name: 'HR Executive', department: 'Human Resources', created_at: new Date().toISOString() },
+    { id: 'mu_it', email: 'itsupport@kworks.com', password: 'ITSupport@2026!', role: 'it', name: 'IT Support Lead', department: 'Information Technology', created_at: new Date().toISOString() },
+    { id: 'mu_finance', email: 'finance@kworks.com', password: 'Finance@2026!', role: 'finance', name: 'Finance Manager', department: 'Finance & Accounts', created_at: new Date().toISOString() },
+  ];
+
+  const hashedUsers = [];
+  for (const u of users) {
+    hashedUsers.push({
+      ...u,
+      passwordHash: await hashPassword(u.password),
+    });
+    delete u.password;
+  }
+  return hashedUsers;
+}
 
 const INITIAL_DATA = {
   users: [],
@@ -29,12 +59,31 @@ const INITIAL_DATA = {
   chat_groups: [],
   companies: ['kanagamtech', 'amsems'],
   notifications: [],
+  app_updates: {
+    version: '1.0.0',
+    buildNumber: 1,
+    title: 'KwOrKs Production Release',
+    notes: '• Biometric Face Attendance\n• Live GPS Telemetry Radar\n• Meal & Food Planning\n• Remote Over-The-Air Update Engine',
+    mandatory: false,
+    apkUrl: '',
+    publishedAt: new Date().toISOString(),
+    updateId: 'upd_v1_0_0',
+  },
+  management_users: [],
 };
 
 class Database {
   constructor() {
     this.data = this.load();
+    this.seedManagementUsers();
     this.initMongo();
+  }
+
+  async seedManagementUsers() {
+    if (!this.data.management_users || this.data.management_users.length === 0) {
+      this.data.management_users = await seedManagementUsers();
+      this.save();
+    }
   }
 
   async initMongo() {
@@ -411,7 +460,131 @@ class Database {
     }
     return this.getCompanies();
   }
+
+  getAppUpdate() {
+    if (!this.data.app_updates) {
+      this.data.app_updates = {
+        version: '1.0.0',
+        buildNumber: 1,
+        title: 'KwOrKs Production Release',
+        notes: '• Biometric Face Attendance\n• Live GPS Telemetry Radar\n• Meal & Food Planning',
+        mandatory: false,
+        apkUrl: '',
+        publishedAt: new Date().toISOString(),
+        updateId: 'upd_v1_0_0',
+      };
+      this.save();
+    }
+    return this.data.app_updates;
+  }
+
+  publishAppUpdate(updateData) {
+    const item = {
+      version: updateData.version || '1.0.1',
+      buildNumber: Number(updateData.buildNumber) || (this.data.app_updates?.buildNumber || 1) + 1,
+      title: updateData.title || 'App Update Available',
+      notes: updateData.notes || 'Performance improvements & feature updates.',
+      mandatory: Boolean(updateData.mandatory),
+      apkUrl: updateData.apkUrl || '',
+      publishedAt: new Date().toISOString(),
+      updateId: `upd_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    };
+    this.data.app_updates = item;
+    this.save();
+
+    // Broadcast a high-priority system notice & notification to all employee devices
+    this.addNotification({
+      title: `🚀 App Update Released: ${item.version}`,
+      body: `${item.title} - ${item.notes.replace(/\\n/g, ' ')}`,
+      type: 'app_update',
+      version: item.version,
+    });
+
+    return item;
+  }
+
+  getManagementUsers() {
+    return (this.data.management_users || []).map(u => ({
+      id: u.id,
+      email: u.email,
+      role: u.role,
+      name: u.name,
+      department: u.department,
+      created_at: u.created_at,
+    }));
+  }
+
+  async addManagementUser(userData) {
+    const existing = this.data.management_users.find(u => u.email.toLowerCase() === userData.email.toLowerCase());
+    if (existing) {
+      throw new Error('Email already exists');
+    }
+    const passwordHash = await hashPassword(userData.password);
+    const newUser = {
+      id: `mu_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      email: userData.email.toLowerCase(),
+      passwordHash,
+      role: userData.role,
+      name: userData.name,
+      department: userData.department || 'General',
+      created_at: new Date().toISOString(),
+    };
+    this.data.management_users.push(newUser);
+    this.save();
+    return {
+      id: newUser.id,
+      email: newUser.email,
+      role: newUser.role,
+      name: newUser.name,
+      department: newUser.department,
+      created_at: newUser.created_at,
+    };
+  }
+
+  async updateManagementUser(id, updates) {
+    const idx = this.data.management_users.findIndex(u => u.id === id);
+    if (idx === -1) return null;
+    
+    if (updates.password) {
+      updates.passwordHash = await hashPassword(updates.password);
+      delete updates.password;
+    }
+    
+    this.data.management_users[idx] = { ...this.data.management_users[idx], ...updates };
+    this.save();
+    const u = this.data.management_users[idx];
+    return {
+      id: u.id,
+      email: u.email,
+      role: u.role,
+      name: u.name,
+      department: u.department,
+      created_at: u.created_at,
+    };
+  }
+
+  deleteManagementUser(id) {
+    this.data.management_users = this.data.management_users.filter(u => u.id !== id);
+    this.save();
+    return this.getManagementUsers();
+  }
+
+  async verifyManagementUser(email, password) {
+    const user = this.data.management_users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    if (!user) return null;
+    const valid = await verifyPassword(password, user.passwordHash);
+    if (!valid) return null;
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      name: user.name,
+      department: user.department,
+    };
+  }
 }
 
 const db = new Database();
 module.exports = db;
+module.exports.hashPassword = hashPassword;
+module.exports.verifyPassword = verifyPassword;

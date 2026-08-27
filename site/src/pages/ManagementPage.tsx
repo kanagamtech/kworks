@@ -28,7 +28,7 @@ export const ManagementPage: React.FC = () => {
   const [loginError, setLoginError] = useState('');
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'onboarding' | 'attendance' | 'food' | 'leaves' | 'notices' | 'polls' | 'tickets' | 'claims'>('onboarding');
+  const [activeTab, setActiveTab] = useState<'onboarding' | 'attendance' | 'food' | 'leaves' | 'notices' | 'polls' | 'tickets' | 'claims' | 'updates'>('onboarding');
 
   // Data States
   const [employees, setEmployees] = useState<any[]>([]);
@@ -43,6 +43,16 @@ export const ManagementPage: React.FC = () => {
   const [polls, setPolls] = useState<any[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
   const [claims, setClaims] = useState<any[]>([]);
+  const [appUpdate, setAppUpdate] = useState<any>(null);
+
+  // App Update Broadcast Form State
+  const [updateVersion, setUpdateVersion] = useState('1.0.1');
+  const [updateTitle, setUpdateTitle] = useState('⚡ Biometric Scan & Shift Sync Upgrade');
+  const [updateNotes, setUpdateNotes] = useState('• Faster face recognition & spectacles invariance\n• High-precision GPS drift reduction\n• Real-time shift duration notification');
+  const [updateMandatory, setUpdateMandatory] = useState(false);
+  const [updateApkUrl, setUpdateApkUrl] = useState('');
+  const [updateStatusMsg, setUpdateStatusMsg] = useState('');
+  const [isPublishingUpdate, setIsPublishingUpdate] = useState(false);
 
   // Onboarding Form & Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -66,7 +76,7 @@ export const ManagementPage: React.FC = () => {
   const [selectedEmpEmail, setSelectedEmpEmail] = useState('');
 
   const loadAllData = async () => {
-    const [emps, atts, foods, lvs, nots, pls, tks, clms, cmps] = await Promise.all([
+    const [emps, atts, foods, lvs, nots, pls, tks, clms, cmps, upd] = await Promise.all([
       api.getEmployees(),
       api.getAttendance(),
       api.getFoodCounts(),
@@ -76,6 +86,7 @@ export const ManagementPage: React.FC = () => {
       api.getTickets(),
       api.getClaims(),
       api.getCompanies(),
+      api.getAppUpdate(),
     ]);
     setEmployees(emps);
     setAttendance(atts);
@@ -85,11 +96,40 @@ export const ManagementPage: React.FC = () => {
     setPolls(pls);
     setTickets(tks);
     setClaims(clms);
+    if (upd) setAppUpdate(upd);
     if (Array.isArray(cmps) && cmps.length > 0) {
       setCompanies(cmps);
       if (!cmps.includes(empCompany)) {
         setEmpCompany(cmps[0]);
       }
+    }
+  };
+
+  const handlePublishAppUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!updateVersion.trim()) {
+      setUpdateStatusMsg('Please enter a version string (e.g. 1.0.1)');
+      return;
+    }
+    setIsPublishingUpdate(true);
+    setUpdateStatusMsg('');
+    try {
+      const res = await api.publishAppUpdate({
+        version: updateVersion.trim(),
+        title: updateTitle.trim(),
+        notes: updateNotes.trim(),
+        mandatory: updateMandatory,
+        apkUrl: updateApkUrl.trim(),
+      });
+      if (res) {
+        setAppUpdate(res);
+        setUpdateStatusMsg(`✅ Success! Version ${res.version} broadcasted to all connected user devices.`);
+        setTimeout(() => setUpdateStatusMsg(''), 6000);
+      }
+    } catch {
+      setUpdateStatusMsg('❌ Failed to broadcast update.');
+    } finally {
+      setIsPublishingUpdate(false);
     }
   };
 
@@ -358,6 +398,7 @@ export const ManagementPage: React.FC = () => {
           { id: 'polls', label: 'POLLS', stat: `${polls.length} active` },
           { id: 'tickets', label: 'IT SUPPORT', stat: `${tickets.length} tickets` },
           { id: 'claims', label: 'CLAIMS & ADVANCES', stat: `${claims.filter((c) => c.status.manager === 'pending' || (c.status.manager === 'approved' && c.status.finance === 'pending')).length} pending` },
+          { id: 'updates', label: 'APP UPDATES (OTA)', stat: appUpdate ? `v${appUpdate.version} live` : 'v1.0.0 live' },
         ].map((key) => (
           <div
             key={key.id}
@@ -1010,6 +1051,148 @@ export const ManagementPage: React.FC = () => {
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* TAB 9: APP UPDATES & OVER-THE-AIR (OTA) MANAGER */}
+        {activeTab === 'updates' && (
+          <div>
+            <h2 style={styles.panelTitle}>🚀 Mobile App Update &amp; Remote Deployment Center</h2>
+
+            <div style={{ backgroundColor: 'rgba(215,171,106,0.12)', border: '1px solid #D7AB6A', borderRadius: '12px', padding: '16px 20px', marginBottom: '24px' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#31122B', marginBottom: '6px' }}>
+                CURRENT LIVE APP VERSION ON USER PHONES
+              </h3>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', marginTop: '10px' }}>
+                <div style={{ backgroundColor: '#31122B', color: '#D7AB6A', padding: '8px 16px', borderRadius: '8px', fontWeight: 800, fontSize: '18px', letterSpacing: '1px' }}>
+                  v{appUpdate?.version || '1.0.0'}
+                </div>
+                <div style={{ fontSize: '13px', color: '#31122B' }}>
+                  <strong>Title:</strong> {appUpdate?.title || 'Production Initial'} &middot;{' '}
+                  <strong>Published:</strong> {appUpdate?.publishedAt ? new Date(appUpdate.publishedAt).toLocaleString() : 'Active'} &middot;{' '}
+                  <strong>Mandatory Lock:</strong> {appUpdate?.mandatory ? 'YES (Forced Update)' : 'NO (Flexible)'}
+                </div>
+              </div>
+            </div>
+
+            <div style={styles.colsTwo}>
+              {/* Broadcast New Update Form */}
+              <div style={styles.colCard}>
+                <h3 style={styles.cardTitle}>BROADCAST NEW CODE UPDATE TO ALL USER PHONES</h3>
+                <p style={{ color: '#666', fontSize: '13px', marginBottom: '16px' }}>
+                  When you broadcast an update, all connected mobile devices running the KwOrKs app will receive an instant update prompt with your changelog and automatically reload the new code.
+                </p>
+
+                <form onSubmit={handlePublishAppUpdate}>
+                  <label style={styles.fieldLabel}>NEW VERSION TAG *</label>
+                  <input
+                    style={styles.fieldInput}
+                    value={updateVersion}
+                    onChange={(e) => setUpdateVersion(e.target.value)}
+                    placeholder="e.g. 1.0.1 or 1.1.0"
+                    required
+                  />
+
+                  <label style={styles.fieldLabel}>UPDATE HEADLINE / TITLE *</label>
+                  <input
+                    style={styles.fieldInput}
+                    value={updateTitle}
+                    onChange={(e) => setUpdateTitle(e.target.value)}
+                    placeholder="e.g. ⚡ Biometric Scan & Shift Sync Upgrade"
+                    required
+                  />
+
+                  <label style={styles.fieldLabel}>RELEASE NOTES / CHANGELOG</label>
+                  <textarea
+                    style={{ ...styles.fieldInput, minHeight: '90px', fontFamily: 'inherit', resize: 'vertical' }}
+                    value={updateNotes}
+                    onChange={(e) => setUpdateNotes(e.target.value)}
+                    placeholder="• Bullet points of new features and bug fixes..."
+                  />
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '14px 0' }}>
+                    <input
+                      type="checkbox"
+                      id="mandatoryCheck"
+                      checked={updateMandatory}
+                      onChange={(e) => setUpdateMandatory(e.target.checked)}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    />
+                    <label htmlFor="mandatoryCheck" style={{ fontSize: '13px', fontWeight: 700, color: '#31122B', cursor: 'pointer' }}>
+                      Force Mandatory Update (Users must apply update before accessing workspace)
+                    </label>
+                  </div>
+
+                  <label style={styles.fieldLabel}>DIRECT APK DOWNLOAD URL (OPTIONAL FOR MAJOR NATIVE BUILDS)</label>
+                  <input
+                    style={styles.fieldInput}
+                    value={updateApkUrl}
+                    onChange={(e) => setUpdateApkUrl(e.target.value)}
+                    placeholder="https://.../kworks-v1.0.1.apk"
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={isPublishingUpdate}
+                    style={{
+                      ...styles.btnPrimary,
+                      backgroundColor: '#31122B',
+                      color: '#D7AB6A',
+                      border: '1.5px solid #D7AB6A',
+                      padding: '14px',
+                      fontSize: '15px',
+                      fontWeight: 800,
+                      marginTop: '10px',
+                    }}
+                  >
+                    {isPublishingUpdate ? '⏳ Broadcasting to User Phones...' : '🚀 Broadcast Code Update to All User Phones'}
+                  </button>
+
+                  {updateStatusMsg && (
+                    <p style={{ marginTop: '12px', fontSize: '13px', fontWeight: 700, color: updateStatusMsg.startsWith('✅') ? '#2E8B57' : '#E05050' }}>
+                      {updateStatusMsg}
+                    </p>
+                  )}
+                </form>
+              </div>
+
+              {/* Live Info & OTA Guide Card */}
+              <div style={styles.colCard}>
+                <h3 style={styles.cardTitle}>HOW SELF-UPDATE WORKS IN KWORKS</h3>
+                <div style={{ fontSize: '13px', color: '#444', lineHeight: '1.6', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: '20px' }}>📲</span>
+                    <div>
+                      <strong>1. Real-Time Update Detection:</strong>
+                      <p style={{ margin: '2px 0 0', color: '#666' }}>The KwOrKs mobile app continuously monitors the backend for new releases broadcasted from this dashboard.</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: '20px' }}>⚡</span>
+                    <div>
+                      <strong>2. Automatic In-App Reload:</strong>
+                      <p style={{ margin: '2px 0 0', color: '#666' }}>Users receive an interactive update prompt showing your changelog. Tapping update instantly refreshes the runtime bundle.</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: '20px' }}>🔒</span>
+                    <div>
+                      <strong>3. Mandatory Version Locks:</strong>
+                      <p style={{ margin: '2px 0 0', color: '#666' }}>If a critical fix or attendance policy changes, checking "Mandatory Update" prevents shift check-in until updated.</p>
+                    </div>
+                  </div>
+
+                  <div style={{ backgroundColor: 'rgba(46,139,87,0.08)', border: '1px solid rgba(46,139,87,0.3)', borderRadius: '8px', padding: '12px', marginTop: '6px' }}>
+                    <span style={{ color: '#2E8B57', fontWeight: 800 }}>✔ Ready for Production Deployment</span>
+                    <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#2E8B57' }}>
+                      Broadcast signals are dispatched instantly over your Coolify VPS API to all Android and iOS user devices.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

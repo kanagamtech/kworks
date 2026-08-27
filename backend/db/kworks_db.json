@@ -25,5 +25,77 @@
     "kanagamtech",
     "amsems"
   ],
-  "notifications": []
+  "notifications": [],
+  "app_updates": {
+    "version": "1.0.0",
+    "buildNumber": 1,
+    "title": "KwOrKs Production Release",
+    "notes": "• Biometric Face Attendance\n• Live GPS Telemetry Radar\n• Meal & Food Planning\n• Remote Over-The-Air Update Engine",
+    "mandatory": false,
+    "apkUrl": "",
+    "publishedAt": "2026-08-27T06:18:07.140Z",
+    "updateId": "upd_v1_0_0"
+  },
+  "management_users": [
+    {
+      "id": "mu_super",
+      "email": "superadmin@kworks.com",
+      "password": "SuperAdmin@2026!",
+      "role": "super_admin",
+      "name": "Super Administrator",
+      "department": "IT",
+      "created_at": "2026-08-27T06:18:07.144Z",
+      "passwordHash": "$2b$12$63S3ve8tqr3YZHRXuuKijOOqi/8psGrbSVIjKweEyMgucl1ZbI3OK"
+    },
+    {
+      "id": "mu_admin",
+      "email": "admin@kworks.com",
+      "password": "Admin@2026!",
+      "role": "admin",
+      "name": "System Admin",
+      "department": "IT",
+      "created_at": "2026-08-27T06:18:07.144Z",
+      "passwordHash": "$2b$12$n3jXOtMsuR2nWQZXzRGRMe2yrA2FP7dbx0rj8/fmp38VARD.Wom/q"
+    },
+    {
+      "id": "mu_manager",
+      "email": "manager@kworks.com",
+      "password": "Manager@2026!",
+      "role": "manager",
+      "name": "General Manager",
+      "department": "Management",
+      "created_at": "2026-08-27T06:18:07.144Z",
+      "passwordHash": "$2b$12$UENU/6rBPRg3j9VHxLEDluqW/uVCJ4I.wn.gZStx69rIS2e6bNh.e"
+    },
+    {
+      "id": "mu_hr",
+      "email": "hr@kworks.com",
+      "password": "HR@2026!",
+      "role": "hr",
+      "name": "HR Executive",
+      "department": "Human Resources",
+      "created_at": "2026-08-27T06:18:07.144Z",
+      "passwordHash": "$2b$12$s41WcnOBjqNHGMCiVD.bCe.E8UIdwFWIz9WAdq8K8tY2WW0Ewz.02"
+    },
+    {
+      "id": "mu_it",
+      "email": "itsupport@kworks.com",
+      "password": "ITSupport@2026!",
+      "role": "it",
+      "name": "IT Support Lead",
+      "department": "Information Technology",
+      "created_at": "2026-08-27T06:18:07.144Z",
+      "passwordHash": "$2b$12$wCtkSFm5dPTQYz5BaJMFp.284C6I2f66sByyfZIEd2WHabI/IX1HO"
+    },
+    {
+      "id": "mu_finance",
+      "email": "finance@kworks.com",
+      "password": "Finance@2026!",
+      "role": "finance",
+      "name": "Finance Manager",
+      "department": "Finance & Accounts",
+      "created_at": "2026-08-27T06:18:07.144Z",
+      "passwordHash": "$2b$12$7/CRcg8uM/W4I2cn6erW6Oxo.NxZJ3nu4WkCf8r8WnbyzZSkUjkxC"
+    }
+  ]
 }

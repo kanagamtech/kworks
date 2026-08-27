@@ -19,6 +19,8 @@ import NotificationScreen from './screens/NotificationScreen';
 import ClaimsScreen from './screens/ClaimsScreen';
 import ChatScreen from './screens/ChatScreen';
 import { API_BASE } from './utils/config';
+import { useAppUpdate } from './hooks/useAppUpdate';
+import UpdateModal from './components/UpdateModal';
 import type { UserProfile } from './types';
 
 if (__DEV__) {
@@ -166,8 +168,25 @@ function AppInner() {
     setScreen('login');
   };
 
+  const {
+    updateAvailable,
+    updateInfo,
+    isDownloading,
+    applyUpdate,
+    dismissUpdate,
+  } = useAppUpdate();
+
   const AppScreen = ({ children }: { children: ReactNode }) => (
-    <Screen onOpenNotifications={() => setScreen('notifications')}>{children}</Screen>
+    <Screen onOpenNotifications={() => setScreen('notifications')}>
+      {children}
+      <UpdateModal
+        visible={updateAvailable}
+        updateInfo={updateInfo}
+        isDownloading={isDownloading}
+        onApply={applyUpdate}
+        onDismiss={dismissUpdate}
+      />
+    </Screen>
   );
 
   useEffect(() => {
