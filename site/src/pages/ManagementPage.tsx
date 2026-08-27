@@ -28,11 +28,8 @@ const ROLE_PERMISSIONS: Record<Role, string[]> = {
 };
 
 export const ManagementPage: React.FC = () => {
-  // Auth State - Default to null so user must log in
-  const [role, setRole] = useState<Role | null>(() => {
-    const saved = sessionStorage.getItem('kworks_mgmt_role');
-    return saved && SITE_CREDS[saved as Role] ? (saved as Role) : null;
-  });
+  // Auth State - Always starts as null so user must explicitly sign in
+  const [role, setRole] = useState<Role | null>(null);
   const [loginRole, setLoginRole] = useState<Role>('manager');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPass, setLoginPass] = useState('');
@@ -146,10 +143,11 @@ export const ManagementPage: React.FC = () => {
   };
 
   useEffect(() => {
+    if (!role) return;
     loadAllData();
     const interval = setInterval(loadAllData, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [role]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -199,6 +197,8 @@ export const ManagementPage: React.FC = () => {
   const handleLogout = () => {
     setRole(null);
     sessionStorage.removeItem('kworks_mgmt_role');
+    localStorage.removeItem('kworks_access_token');
+    localStorage.removeItem('kworks_refresh_token');
   };
 
   const handleAddCompany = async (e: React.FormEvent) => {
