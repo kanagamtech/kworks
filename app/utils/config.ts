@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 
 // Set your Coolify VPS backend domain here:
-const PRODUCTION_BACKEND_URL = 'https://wkorksb.kanagamtech.com';
+const PRODUCTION_BACKEND_URL = 'https://www.kworksb.kanagamtech.com';
 
 const LAN_IP = '192.168.0.6';
 
