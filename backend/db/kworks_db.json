@@ -1,6 +1,18 @@
 {
   "users": [],
-  "employees": [],
+  "employees": [
+    {
+      "id": "EMP-9999",
+      "name": "Sabarees Tester",
+      "email": "tester@kanagamtech.com",
+      "password": "password123",
+      "company": "kanagamtech",
+      "department": "Engineering",
+      "destination": "Senior Developer",
+      "role": "Senior Developer",
+      "created_at": "2026-08-27T12:11:05.203Z"
+    }
+  ],
   "attendance": [],
   "food_counts": [],
   "leave_requests": {},
@@ -25,16 +37,27 @@
     "kanagamtech",
     "amsems"
   ],
-  "notifications": [],
+  "notifications": [
+    {
+      "id": "notif_1787832665211_wo2s",
+      "timestamp": "2026-08-27T12:11:05.211Z",
+      "date": "Aug 27, 2026",
+      "time": "5:41:05 pm",
+      "title": "🚀 App Update Released: 1.0.1",
+      "body": "⚡ Biometric Attendance & Shift Sync Engine 2.0 - • Biometric scan upgrade\n• Real-time shift notifications",
+      "type": "app_update",
+      "version": "1.0.1"
+    }
+  ],
   "app_updates": {
-    "version": "1.0.0",
-    "buildNumber": 1,
-    "title": "KwOrKs Production Release",
-    "notes": "• Biometric Face Attendance\n• Live GPS Telemetry Radar\n• Meal & Food Planning\n• Remote Over-The-Air Update Engine",
+    "version": "1.0.1",
+    "buildNumber": 2,
+    "title": "⚡ Biometric Attendance & Shift Sync Engine 2.0",
+    "notes": "• Biometric scan upgrade\n• Real-time shift notifications",
     "mandatory": false,
     "apkUrl": "",
-    "publishedAt": "2026-08-27T06:18:07.140Z",
-    "updateId": "upd_v1_0_0"
+    "publishedAt": "2026-08-27T12:11:05.209Z",
+    "updateId": "upd_1787832665209_xdsy"
   },
   "management_users": [
     {

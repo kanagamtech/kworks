@@ -398,4 +398,19 @@ export const api = {
       return [];
     }
   },
+
+  async managementLogin(credentials: { email: string; password: string; role: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/management-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentials),
+      });
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
 };
+
+export { API_BASE };

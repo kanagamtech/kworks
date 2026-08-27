@@ -500,6 +500,10 @@ class Database {
       version: item.version,
     });
 
+    if (getIsConnected()) {
+      Models.AppUpdate.updateOne({}, item, { upsert: true }).catch(() => {});
+    }
+
     return item;
   }
 
@@ -581,6 +585,10 @@ class Database {
       name: user.name,
       department: user.department,
     };
+  }
+
+  isConnectedToMongo() {
+    return typeof getIsConnected === 'function' ? getIsConnected() : false;
   }
 }
 

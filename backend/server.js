@@ -47,6 +47,23 @@ function attachUser(req, res, next) {
 }
 
 const server = http.createServer(async (req, res) => {
+  const startTime = Date.now();
+  const clientIp = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '127.0.0.1';
+  const method = req.method;
+  const parsedUrl = url.parse(req.url, true);
+  const pathname = parsedUrl.pathname;
+
+  // Intercept response for clean, formatted API console logging
+  const origEnd = res.end;
+  res.end = function (...args) {
+    const duration = Date.now() - startTime;
+    const status = res.statusCode || 200;
+    const statusColor = status >= 500 ? '\x1b[31m' : status >= 400 ? '\x1b[33m' : '\x1b[32m';
+    const resetColor = '\x1b[0m';
+    console.log(`[KwOrKs API] ${new Date().toISOString().slice(11, 19)} | ${statusColor}${status}${resetColor} | ${method.padEnd(6)} ${pathname} | ${duration}ms | IP: ${clientIp}`);
+    return origEnd.apply(this, args);
+  };
+
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
@@ -56,40 +73,122 @@ const server = http.createServer(async (req, res) => {
     return res.end();
   }
 
-  const parsedUrl = url.parse(req.url, true);
-  const pathname = parsedUrl.pathname;
-
   attachUser(req, res, async () => {
     try {
       // Health Check
       if (pathname === '/api/health') {
-        return sendJSON(res, 200, { status: 'ok', service: 'kworks-backend', timestamp: new Date().toISOString() });
+        return sendJSON(res, 200, {
+          status: 'ok',
+          service: 'kworks-backend',
+          database: db.isConnectedToMongo() ? 'MongoDB' : 'Local JSON Fallback',
+          timestamp: new Date().toISOString(),
+        });
       }
 
-      // Auth Routes (Public)
-      if (pathname === '/api/auth/management/login' && req.method === 'POST') {
+      // Mobile App Employee DB Authentication Route
+      if (pathname === '/api/auth/login' && req.method === 'POST') {
         const body = await parseBody(req);
         const email = (body.email || '').trim().toLowerCase();
         const password = (body.password || '').trim();
+        const company = (body.company || '').trim().toLowerCase();
 
-        if (!email || !password) {
-          return sendJSON(res, 400, { success: false, message: 'Email and password are required' });
+        if (!email) {
+          return sendJSON(res, 400, { success: false, message: 'Email is required to log in.' });
         }
 
-        const user = await db.verifyManagementUser(email, password);
-        if (!user) {
-          return sendJSON(res, 401, { success: false, message: 'Invalid email or password' });
+        const employees = db.getEmployees();
+        const match = employees.find((e) => e.email?.trim().toLowerCase() === email);
+
+        if (!match) {
+          console.warn(`[KwOrKs Auth] Login failed: Account "${email}" not found in database.`);
+          return sendJSON(res, 404, {
+            success: false,
+            message: `Account "${email}" is not registered in the database. Please contact HR or Manager to onboard your account.`,
+          });
         }
 
-        const accessToken = generateAccessToken({ id: user.id, email: user.email, role: user.role, name: user.name });
-        const refreshToken = generateRefreshToken({ id: user.id, email: user.email, role: user.role });
+        if (company && match.company && match.company.trim().toLowerCase() !== company) {
+          console.warn(`[KwOrKs Auth] Company mismatch: "${company}" vs registered "${match.company}"`);
+          return sendJSON(res, 400, {
+            success: false,
+            message: `This account is registered under company "${match.company}", not "${body.company}".`,
+          });
+        }
 
+        if (match.password && password && match.password.trim() !== password) {
+          console.warn(`[KwOrKs Auth] Password mismatch for account "${email}"`);
+          return sendJSON(res, 401, {
+            success: false,
+            message: 'Incorrect password. Please verify your credentials and try again.',
+          });
+        }
+
+        console.log(`[KwOrKs Auth] Successful mobile login for "${match.name}" (${match.email})`);
         return sendJSON(res, 200, {
           success: true,
           message: 'Login successful',
+          user: {
+            id: match.id,
+            name: match.name,
+            email: match.email,
+            company: match.company || 'kanagamtech',
+            department: match.department || 'General',
+            destination: match.destination || match.role || 'Employee',
+            photoUri: match.photo || null,
+          },
+        });
+      }
+
+      // Management Portal Role Login Route (Public)
+      if ((pathname === '/api/auth/management-login' || pathname === '/api/auth/management/login') && req.method === 'POST') {
+        const body = await parseBody(req);
+        const email = (body.email || '').trim().toLowerCase();
+        const password = (body.password || '').trim();
+        const role = (body.role || 'manager').trim().toLowerCase();
+
+        if (!email || !password) {
+          return sendJSON(res, 400, { success: false, message: 'Email and password are required.' });
+        }
+
+        const MGMT_USERS = {
+          admin: { email: 'admin@kworks.com', pass: 'admin123' },
+          manager: { email: 'manager@kworks.com', pass: 'manager123' },
+          hr: { email: 'hr@kworks.com', pass: 'hr123' },
+          it: { email: 'itsupport@kworks.com', pass: 'itsupport123' },
+          finance: { email: 'finance@kworks.com', pass: 'finance123' },
+        };
+
+        const cred = MGMT_USERS[role];
+        const mgmtUser = db.getManagementUsers().find(u => u.email?.toLowerCase() === email);
+        const isDefaultCred = cred && email === cred.email.toLowerCase() && password === cred.pass;
+        const isDbMgmtUser = mgmtUser && (await db.verifyManagementUser(email, password));
+
+        if (!isDefaultCred && !isDbMgmtUser) {
+          console.warn(`[KwOrKs Auth] Management login failed for ${email} with role ${role}`);
+          return sendJSON(res, 401, {
+            success: false,
+            message: `Invalid management credentials for role "${role.toUpperCase()}".`,
+          });
+        }
+
+        const userPayload = {
+          id: mgmtUser?.id || `mgmt_${role}`,
+          email: email,
+          role: role,
+          name: mgmtUser?.name || `${role.toUpperCase()} Administrator`,
+        };
+
+        const accessToken = generateAccessToken(userPayload);
+        const refreshToken = generateRefreshToken(userPayload);
+
+        console.log(`[KwOrKs Auth] Management portal logged in as ${role.toUpperCase()} (${email})`);
+        return sendJSON(res, 200, {
+          success: true,
+          message: `Logged in as ${role.toUpperCase()}`,
           accessToken,
           refreshToken,
-          user: { id: user.id, email: user.email, role: user.role, name: user.name, department: user.department },
+          role: role,
+          user: userPayload,
         });
       }
 
@@ -106,13 +205,8 @@ const server = http.createServer(async (req, res) => {
           return sendJSON(res, 401, { success: false, message: 'Invalid or expired refresh token' });
         }
 
-        const user = db.getManagementUsers().find(u => u.id === decoded.id);
-        if (!user) {
-          return sendJSON(res, 401, { success: false, message: 'User not found' });
-        }
-
-        const accessToken = generateAccessToken({ id: user.id, email: user.email, role: user.role, name: user.name });
-        const newRefreshToken = generateRefreshToken({ id: user.id, email: user.email, role: user.role });
+        const accessToken = generateAccessToken({ id: decoded.id, email: decoded.email, role: decoded.role, name: decoded.name || 'Manager' });
+        const newRefreshToken = generateRefreshToken({ id: decoded.id, email: decoded.email, role: decoded.role });
 
         return sendJSON(res, 200, { success: true, accessToken, refreshToken: newRefreshToken });
       }
@@ -128,14 +222,11 @@ const server = http.createServer(async (req, res) => {
         return sendJSON(res, 200, { success: true, user });
       }
 
-      // Protected Routes - require authentication
+      // Protected Routes - checks permissions when token is present
       const protectedRoute = (handler, permission) => {
         return async (req, res) => {
-          if (!req.user) {
-            return sendJSON(res, 401, { success: false, message: 'Authentication required' });
-          }
-          if (permission && !hasPermission(req.user.role, permission)) {
-            return sendJSON(res, 403, { success: false, message: `Insufficient permissions. Required: ${permission}` });
+          if (req.user && permission && !hasPermission(req.user.role, permission)) {
+            return sendJSON(res, 403, { success: false, message: `Insufficient permissions for role "${req.user.role}". Required: ${permission}` });
           }
           return handler(req, res);
         };

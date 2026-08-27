@@ -105,6 +105,17 @@ const TicketSchema = new mongoose.Schema({
   created_at: { type: String, default: () => new Date().toISOString() },
 });
 
+const AppUpdateSchema = new mongoose.Schema({
+  version: { type: String, required: true },
+  buildNumber: { type: Number, default: 1 },
+  title: { type: String },
+  notes: { type: String },
+  mandatory: { type: Boolean, default: false },
+  apkUrl: { type: String, default: '' },
+  publishedAt: { type: String, default: () => new Date().toISOString() },
+  updateId: { type: String, default: 'upd_v1_0_0' },
+});
+
 const Models = {
   Employee: mongoose.models.Employee || mongoose.model('Employee', EmployeeSchema),
   Attendance: mongoose.models.Attendance || mongoose.model('Attendance', AttendanceSchema),
@@ -115,6 +126,7 @@ const Models = {
   Company: mongoose.models.Company || mongoose.model('Company', CompanySchema),
   Claim: mongoose.models.Claim || mongoose.model('Claim', ClaimSchema),
   Ticket: mongoose.models.Ticket || mongoose.model('Ticket', TicketSchema),
+  AppUpdate: mongoose.models.AppUpdate || mongoose.model('AppUpdate', AppUpdateSchema),
 };
 
 let isConnected = false;

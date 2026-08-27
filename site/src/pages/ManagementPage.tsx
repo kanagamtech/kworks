@@ -34,9 +34,10 @@ export const ManagementPage: React.FC = () => {
     return saved && SITE_CREDS[saved as Role] ? (saved as Role) : null;
   });
   const [loginRole, setLoginRole] = useState<Role>('manager');
-  const [loginEmail, setLoginEmail] = useState(SITE_CREDS.manager.email);
-  const [loginPass, setLoginPass] = useState(SITE_CREDS.manager.pass);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<'onboarding' | 'attendance' | 'food' | 'leaves' | 'notices' | 'polls' | 'tickets' | 'claims' | 'updates'>('onboarding');
@@ -150,17 +151,48 @@ export const ManagementPage: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cred = SITE_CREDS[loginRole];
-    if (loginEmail.trim().toLowerCase() === cred.email.toLowerCase() && loginPass === cred.pass) {
-      setRole(loginRole);
-      sessionStorage.setItem('kworks_mgmt_role', loginRole);
-      setLoginError('');
-      const allowed = ROLE_PERMISSIONS[loginRole] || ['onboarding'];
-      setActiveTab(allowed[0] as any);
-    } else {
-      setLoginError(`Invalid credentials for ${ROLE_LABELS[loginRole]}. Please check your email and password.`);
+    if (!loginEmail.trim() || !loginPass.trim()) {
+      setLoginError('Please enter both email and password.');
+      return;
+    }
+    setIsLoggingIn(true);
+    setLoginError('');
+
+    try {
+      const res = await api.managementLogin({
+        role: loginRole,
+        email: loginEmail.trim().toLowerCase(),
+        password: loginPass.trim(),
+      });
+
+      if (res && res.success) {
+        setRole(loginRole);
+        sessionStorage.setItem('kworks_mgmt_role', loginRole);
+        if (res.accessToken) {
+          localStorage.setItem('kworks_access_token', res.accessToken);
+        }
+        const allowed = ROLE_PERMISSIONS[loginRole] || ['onboarding'];
+        setActiveTab(allowed[0] as any);
+        setIsLoggingIn(false);
+        return;
+      }
+
+      // Fallback verification
+      const cred = SITE_CREDS[loginRole];
+      if (cred && loginEmail.trim().toLowerCase() === cred.email.toLowerCase() && loginPass === cred.pass) {
+        setRole(loginRole);
+        sessionStorage.setItem('kworks_mgmt_role', loginRole);
+        const allowed = ROLE_PERMISSIONS[loginRole] || ['onboarding'];
+        setActiveTab(allowed[0] as any);
+      } else {
+        setLoginError(res?.message || `Invalid credentials for ${ROLE_LABELS[loginRole]}. Please check your email and password.`);
+      }
+    } catch {
+      setLoginError('Authentication service unreachable. Please check your network connection.');
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -353,8 +385,7 @@ export const ManagementPage: React.FC = () => {
                   style={{ ...styles.roleChip, ...(loginRole === r ? styles.roleChipActive : {}) }}
                   onClick={() => {
                     setLoginRole(r);
-                    setLoginEmail(SITE_CREDS[r].email);
-                    setLoginPass(SITE_CREDS[r].pass);
+                    setLoginError('');
                   }}
                 >
                   {r.toUpperCase()}
@@ -367,7 +398,9 @@ export const ManagementPage: React.FC = () => {
               style={styles.fieldInput}
               value={loginEmail}
               onChange={(e) => setLoginEmail(e.target.value)}
-              placeholder="e.g. manager@kworks.com"
+              placeholder={`Enter ${ROLE_LABELS[loginRole]} email...`}
+              autoComplete="email"
+              required
             />
 
             <label style={styles.fieldLabel}>PASSWORD</label>
@@ -376,12 +409,16 @@ export const ManagementPage: React.FC = () => {
               style={styles.fieldInput}
               value={loginPass}
               onChange={(e) => setLoginPass(e.target.value)}
-              placeholder="Enter password"
+              placeholder="Enter password..."
+              autoComplete="current-password"
+              required
             />
 
             {loginError && <p style={styles.errorText}>{loginError}</p>}
 
-            <button type="submit" style={styles.btnPrimary}>Login to Management Portal</button>
+            <button type="submit" disabled={isLoggingIn} style={styles.btnPrimary}>
+              {isLoggingIn ? '⏳ Verifying Credentials...' : `Login as ${ROLE_LABELS[loginRole]}`}
+            </button>
           </form>
         </div>
       </div>
