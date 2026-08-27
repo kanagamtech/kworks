@@ -19,9 +19,20 @@ const ROLE_LABELS: Record<Role, string> = {
   finance: 'Finance Manager',
 };
 
+const ROLE_PERMISSIONS: Record<Role, string[]> = {
+  admin: ['onboarding', 'attendance', 'food', 'leaves', 'notices', 'polls', 'tickets', 'claims', 'updates'],
+  manager: ['onboarding', 'attendance', 'food', 'leaves', 'notices', 'polls', 'claims', 'updates'],
+  hr: ['onboarding', 'attendance', 'food', 'leaves', 'notices', 'polls'],
+  it: ['tickets', 'updates', 'notices'],
+  finance: ['claims', 'food', 'notices'],
+};
+
 export const ManagementPage: React.FC = () => {
-  // Auth State
-  const [role, setRole] = useState<Role | null>('manager');
+  // Auth State - Default to null so user must log in
+  const [role, setRole] = useState<Role | null>(() => {
+    const saved = sessionStorage.getItem('kworks_mgmt_role');
+    return saved && SITE_CREDS[saved as Role] ? (saved as Role) : null;
+  });
   const [loginRole, setLoginRole] = useState<Role>('manager');
   const [loginEmail, setLoginEmail] = useState(SITE_CREDS.manager.email);
   const [loginPass, setLoginPass] = useState(SITE_CREDS.manager.pass);
@@ -142,12 +153,20 @@ export const ManagementPage: React.FC = () => {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     const cred = SITE_CREDS[loginRole];
-    if (loginEmail.trim().toLowerCase() === cred.email && loginPass === cred.pass) {
+    if (loginEmail.trim().toLowerCase() === cred.email.toLowerCase() && loginPass === cred.pass) {
       setRole(loginRole);
+      sessionStorage.setItem('kworks_mgmt_role', loginRole);
       setLoginError('');
+      const allowed = ROLE_PERMISSIONS[loginRole] || ['onboarding'];
+      setActiveTab(allowed[0] as any);
     } else {
-      setLoginError('Invalid management email or password.');
+      setLoginError(`Invalid credentials for ${ROLE_LABELS[loginRole]}. Please check your email and password.`);
     }
+  };
+
+  const handleLogout = () => {
+    setRole(null);
+    sessionStorage.removeItem('kworks_mgmt_role');
   };
 
   const handleAddCompany = async (e: React.FormEvent) => {
@@ -381,13 +400,13 @@ export const ManagementPage: React.FC = () => {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={styles.roleBadge}>{ROLE_LABELS[role]} &middot; {loginEmail}</div>
+          <div style={styles.roleBadge}>{ROLE_LABELS[role]} &middot; {SITE_CREDS[role]?.email || ''}</div>
           <button style={styles.btnGhost} onClick={loadAllData}>Refresh</button>
-          <button style={styles.btnGhost} onClick={() => setRole(null)}>Logout</button>
+          <button style={styles.btnGhost} onClick={handleLogout}>Logout</button>
         </div>
       </header>
 
-      {/* Top Dashboard Navigation Keys Bar (Classic Cards) */}
+      {/* Top Dashboard Navigation Keys Bar (Role-Filtered) */}
       <div style={styles.keysBar}>
         {[
           { id: 'onboarding', label: 'EMPLOYEE ONBOARDING', stat: `${employees.length} onboarded` },
@@ -399,16 +418,18 @@ export const ManagementPage: React.FC = () => {
           { id: 'tickets', label: 'IT SUPPORT', stat: `${tickets.length} tickets` },
           { id: 'claims', label: 'CLAIMS & ADVANCES', stat: `${claims.filter((c) => c.status.manager === 'pending' || (c.status.manager === 'approved' && c.status.finance === 'pending')).length} pending` },
           { id: 'updates', label: 'APP UPDATES (OTA)', stat: appUpdate ? `v${appUpdate.version} live` : 'v1.0.0 live' },
-        ].map((key) => (
-          <div
-            key={key.id}
-            style={{ ...styles.keyCard, ...(activeTab === key.id ? styles.keyCardActive : {}) }}
-            onClick={() => setActiveTab(key.id as any)}
-          >
-            <div style={{ ...styles.keyLabel, ...(activeTab === key.id ? styles.keyLabelActive : {}) }}>{key.label}</div>
-            <div style={{ ...styles.keyStat, ...(activeTab === key.id ? styles.keyStatActive : {}) }}>{key.stat}</div>
-          </div>
-        ))}
+        ]
+          .filter((key) => role && (ROLE_PERMISSIONS[role] || []).includes(key.id))
+          .map((key) => (
+            <div
+              key={key.id}
+              style={{ ...styles.keyCard, ...(activeTab === key.id ? styles.keyCardActive : {}) }}
+              onClick={() => setActiveTab(key.id as any)}
+            >
+              <div style={{ ...styles.keyLabel, ...(activeTab === key.id ? styles.keyLabelActive : {}) }}>{key.label}</div>
+              <div style={{ ...styles.keyStat, ...(activeTab === key.id ? styles.keyStatActive : {}) }}>{key.stat}</div>
+            </div>
+          ))}
       </div>
 
       {/* Main Panel Content Container (Classic White Card) */}
