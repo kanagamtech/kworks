@@ -644,6 +644,36 @@ function tryServeStatic(res, baseDir, relativePath) {
   });
 });
 
+const https = require('https');
+
+// ── Keep-Alive Heartbeat Engine (Every 20 Seconds) ─────────────────────────
+// Automatically self-pings the public Render cloud domain to prevent cold spin-down
+function startHeartbeatEngine() {
+  const targetUrl = process.env.RENDER_EXTERNAL_URL ||
+    process.env.APP_URL ||
+    process.env.BACKEND_URL ||
+    'https://kworks-2q0c.onrender.com';
+
+  const healthUrl = `${targetUrl.replace(/\/+$/, '')}/api/health`;
+  const INTERVAL_MS = 20 * 1000; // 20 seconds
+
+  console.log(`[KwOrKs Heartbeat] Active 20s Keep-Alive Pulse -> ${healthUrl}`);
+
+  setInterval(() => {
+    try {
+      const client = healthUrl.startsWith('https') ? https : http;
+      const req = client.get(healthUrl, { timeout: 10000 }, (res) => {
+        res.on('data', () => {});
+        res.on('end', () => {});
+      });
+
+      req.on('error', () => {});
+      req.on('timeout', () => { req.destroy(); });
+    } catch {}
+  }, INTERVAL_MS);
+}
+
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`[KwOrKs Backend Server] Running on port ${PORT} (0.0.0.0)`);
+  startHeartbeatEngine();
 });

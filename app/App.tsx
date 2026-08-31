@@ -161,6 +161,16 @@ function AppInner() {
     setScreen('home');
   };
 
+  // ── 20-Second Cloud Keep-Alive Heartbeat ────────────────────────────────────
+  useEffect(() => {
+    const pulse = () => {
+      fetch(`${API_BASE}/api/health`).catch(() => {});
+    };
+    pulse();
+    const interval = setInterval(pulse, 20000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleLogout = () => {
     setUser(null);
     AsyncStorage.removeItem(USER_STORAGE_KEY).catch(() => {});

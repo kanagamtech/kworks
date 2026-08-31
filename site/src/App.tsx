@@ -1,9 +1,20 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ManagementPage } from './pages/ManagementPage';
 import { HRPage } from './pages/HRPage';
+import { api } from './services/api';
 
 export const App: React.FC = () => {
   const [currentPortal, setCurrentPortal] = useState<'management' | 'hr'>('management');
+
+  // ── 20-Second Keep-Alive Heartbeat ──────────────────────────────────────────
+  useEffect(() => {
+    const rawUrl = ((import.meta as any).env?.VITE_API_URL || 'https://kworks-2q0c.onrender.com').trim().replace(/\/+$/, '');
+    const healthUrl = `${rawUrl}/api/health`;
+    const pulse = () => { fetch(healthUrl).catch(() => {}); };
+    pulse();
+    const interval = setInterval(pulse, 20000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
