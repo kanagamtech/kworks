@@ -589,30 +589,52 @@ function tryServeStatic(res, baseDir, relativePath) {
   return false;
 }
 
-      // Static Web Dashboard Routes
+function findSitePath(subPath) {
+  const candidates = [
+    path.join(__dirname, 'site', subPath),
+    path.join(__dirname, '../site', subPath),
+    path.join(__dirname, 'site/dist', subPath),
+    path.join(__dirname, '../site/dist', subPath),
+    path.join(__dirname, subPath),
+  ];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) return p;
+    } catch {}
+  }
+  return null;
+}
+
+      // ── Management Portal Route ───────────────────────────────────────────
       if (pathname === '/management' || pathname === '/management/' || pathname === '/management/index.html') {
-        const filePath = path.join(__dirname, '../site/management/index.html');
-        if (fs.existsSync(filePath)) {
+        const mgmtHtml = findSitePath('management/index.html') || findSitePath('dist/index.html') || findSitePath('index.html');
+        if (mgmtHtml) {
           res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-          return res.end(fs.readFileSync(filePath, 'utf8'));
-        }
-      }
-      if (pathname === '/management/logo.png') {
-        const filePath = path.join(__dirname, '../site/management/logo.png');
-        if (fs.existsSync(filePath)) {
-          res.writeHead(200, { 'Content-Type': 'image/png' });
-          return res.end(fs.readFileSync(filePath));
-        }
-      }
-      if (pathname === '/hr' || pathname === '/hr/' || pathname === '/hr/index.html') {
-        const filePath = path.join(__dirname, '../site/hr/index.html');
-        if (fs.existsSync(filePath)) {
-          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-          return res.end(fs.readFileSync(filePath, 'utf8'));
+          return res.end(fs.readFileSync(mgmtHtml, 'utf8'));
         }
       }
 
-      // Serve Expo Web App (Mobile App in Browser) from app/dist or app_dist
+      // ── HR Portal Route ───────────────────────────────────────────────────
+      if (pathname === '/hr' || pathname === '/hr/' || pathname === '/hr/index.html') {
+        const hrHtml = findSitePath('hr/index.html') || findSitePath('dist/index.html') || findSitePath('index.html');
+        if (hrHtml) {
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+          return res.end(fs.readFileSync(hrHtml, 'utf8'));
+        }
+      }
+
+      // ── Static site assets (e.g. /management/logo.png, /logo.png, /assets/*) ──
+      if (pathname.startsWith('/management/') || pathname.startsWith('/hr/')) {
+        const relativeSub = pathname.replace(/^\/(management|hr)\//, '');
+        const assetPath = findSitePath(`management/${relativeSub}`) || findSitePath(`hr/${relativeSub}`) || findSitePath(relativeSub) || findSitePath(`public/${relativeSub}`);
+        if (assetPath && fs.existsSync(assetPath) && fs.statSync(assetPath).isFile()) {
+          const ext = path.extname(assetPath).toLowerCase();
+          res.writeHead(200, { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream' });
+          return fs.createReadStream(assetPath).pipe(res);
+        }
+      }
+
+      // ── Serve Expo Web App (Mobile App in Browser) from app/dist or app_dist ─
       const appDistDirs = [
         path.join(__dirname, '../app/dist'),
         path.join(__dirname, 'app_dist'),
@@ -624,8 +646,8 @@ function tryServeStatic(res, baseDir, relativePath) {
           if (tryServeStatic(res, distDir, pathname)) {
             return;
           }
-          // Fallback to index.html for SPA web routes (non-API)
-          if (!pathname.startsWith('/api/')) {
+          // Fallback to index.html for SPA web routes (non-API and non-management/hr)
+          if (!pathname.startsWith('/api/') && !pathname.startsWith('/management') && !pathname.startsWith('/hr')) {
             const indexHtml = path.join(distDir, 'index.html');
             if (fs.existsSync(indexHtml)) {
               res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });

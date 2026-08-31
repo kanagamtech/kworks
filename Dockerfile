@@ -1,15 +1,19 @@
-# Stage 1: Build Expo Web App
+# Stage 1: Build Expo Web App & Site Portal
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install app dependencies
+# 1. Build Expo Web App
 COPY app/package*.json ./app/
 RUN cd app && npm install
-
-# Build Expo Web App bundle
 COPY app/ ./app/
 RUN cd app && npx expo export --platform web
+
+# 2. Build Site Management Portal
+COPY site/package*.json ./site/
+RUN cd site && npm install
+COPY site/ ./site/
+RUN cd site && npm run build
 
 # Stage 2: Production Server
 FROM node:20-alpine
@@ -21,6 +25,7 @@ RUN npm install --production
 
 COPY backend/ ./
 COPY site/ ./site/
+COPY --from=builder /app/site/dist ./site/dist
 COPY --from=builder /app/app/dist ./app_dist
 
 EXPOSE 10000 5000
