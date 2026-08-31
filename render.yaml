@@ -1,4 +1,4 @@
-﻿# Render.com Deployment Configuration for KwOrKs
+# Render.com Deployment Configuration for KwOrKs
 # See: https://render.com/docs/blueprint-spec
 
 services:
@@ -29,4 +29,4 @@ services:
     region: singapore
     envVars:
       - key: VITE_API_URL
-        value: https://backend.kanagamtech.in
+        value: https://kworks-backend.onrender.com

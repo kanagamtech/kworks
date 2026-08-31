@@ -1,9 +1,8 @@
 import { Platform } from 'react-native';
 
 // ─── Production backend URL ───────────────────────────────────────────────────
-// Set this to your live backend URL when deployed.
-// Leave empty ('') during LOCAL DEVELOPMENT so the LAN/localhost fallback is used.
-const PRODUCTION_BACKEND_URL = 'https://backend.kanagamtech.in'; // Live Coolify backend
+// Set this to your live Render.com backend URL:
+const PRODUCTION_BACKEND_URL = 'https://kworks-backend.onrender.com';
 
 // ─── Local development fallback ───────────────────────────────────────────────
 // Your machine's LAN IP — only used if PRODUCTION_BACKEND_URL is empty.
