@@ -5,7 +5,6 @@ node_modules/
 
 # Expo
 .expo/
-dist/
 web-build/
 expo-env.d.ts
 
@@ -30,10 +29,13 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# local env files — exclude actual secrets, but allow example and production
 .env
-.env*
-.env*.local
+.env.local
+.env.*.local
+# Allow .env.example (template) and .env.production (no secrets, just URLs)
+!.env.example
+!.env.production
 
 # typescript
 *.tsbuildinfo
@@ -41,3 +43,10 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Live database data — do not commit
+backend/db/kworks_db.json
+
+# Built output
+dist/
+site/dist/

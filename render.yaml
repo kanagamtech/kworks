@@ -1,0 +1,32 @@
+﻿# Render.com Deployment Configuration for KwOrKs
+# See: https://render.com/docs/blueprint-spec
+
+services:
+  # --- Backend API Server
+  - type: web
+    name: kworks-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    region: singapore
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+
+  # --- Web Portal (Vite + Nginx)
+  - type: web
+    name: kworks-site
+    runtime: docker
+    dockerfilePath: ./site/Dockerfile
+    dockerContext: ./site
+    plan: free
+    region: singapore
+    buildArgs:
+      - key: VITE_API_URL
+        value: https://kworks-backend.onrender.com

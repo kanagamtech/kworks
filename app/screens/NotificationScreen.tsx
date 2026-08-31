@@ -249,7 +249,12 @@ export default function NotificationScreen({ onBack }: Props) {
           const req = await Notifications.requestPermissionsAsync();
           if (req.status !== 'granted') return;
         }
-        const latest = [...MANAGEMENT_NOTICES, ...HR_NOTICES][0];
+        // Use live backend notice instead of hardcoded mock data
+        const res = await fetch(`${API_BASE}/api/notices`);
+        const data = await res.json();
+        const notices = data.success && Array.isArray(data.data) ? data.data : [];
+        const latest = notices[0];
+        if (!latest) return;
         await Notifications.scheduleNotificationAsync({
           content: {
             title: 'KwOrKs · ' + latest.title,
