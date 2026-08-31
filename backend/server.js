@@ -553,21 +553,86 @@ const server = http.createServer(async (req, res) => {
         }
       }
 
+const MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.json': 'application/json',
+  '.css': 'text/css',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.ico': 'image/x-icon',
+  '.svg': 'image/svg+xml',
+  '.ttf': 'font/ttf',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+};
+
+function tryServeStatic(res, baseDir, relativePath) {
+  try {
+    const safePath = path.normalize(relativePath).replace(/^(\.\.[\/\\])+/, '');
+    let target = path.join(baseDir, safePath);
+    if (fs.existsSync(target) && fs.statSync(target).isDirectory()) {
+      target = path.join(target, 'index.html');
+    }
+    if (fs.existsSync(target) && fs.statSync(target).isFile()) {
+      const ext = path.extname(target).toLowerCase();
+      const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+      res.writeHead(200, {
+        'Content-Type': contentType,
+        'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=31536000, immutable',
+      });
+      fs.createReadStream(target).pipe(res);
+      return true;
+    }
+  } catch {}
+  return false;
+}
+
       // Static Web Dashboard Routes
       if (pathname === '/management' || pathname === '/management/' || pathname === '/management/index.html') {
         const filePath = path.join(__dirname, '../site/management/index.html');
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        return res.end(fs.readFileSync(filePath, 'utf8'));
+        if (fs.existsSync(filePath)) {
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+          return res.end(fs.readFileSync(filePath, 'utf8'));
+        }
       }
       if (pathname === '/management/logo.png') {
         const filePath = path.join(__dirname, '../site/management/logo.png');
-        res.writeHead(200, { 'Content-Type': 'image/png' });
-        return res.end(fs.readFileSync(filePath));
+        if (fs.existsSync(filePath)) {
+          res.writeHead(200, { 'Content-Type': 'image/png' });
+          return res.end(fs.readFileSync(filePath));
+        }
       }
       if (pathname === '/hr' || pathname === '/hr/' || pathname === '/hr/index.html') {
         const filePath = path.join(__dirname, '../site/hr/index.html');
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        return res.end(fs.readFileSync(filePath, 'utf8'));
+        if (fs.existsSync(filePath)) {
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+          return res.end(fs.readFileSync(filePath, 'utf8'));
+        }
+      }
+
+      // Serve Expo Web App (Mobile App in Browser) from app/dist or app_dist
+      const appDistDirs = [
+        path.join(__dirname, '../app/dist'),
+        path.join(__dirname, 'app_dist'),
+        path.join(__dirname, './dist')
+      ];
+
+      for (const distDir of appDistDirs) {
+        if (fs.existsSync(distDir)) {
+          if (tryServeStatic(res, distDir, pathname)) {
+            return;
+          }
+          // Fallback to index.html for SPA web routes (non-API)
+          if (!pathname.startsWith('/api/')) {
+            const indexHtml = path.join(distDir, 'index.html');
+            if (fs.existsSync(indexHtml)) {
+              res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+              return fs.createReadStream(indexHtml).pipe(res);
+            }
+          }
+        }
       }
 
       // 404 Not Found

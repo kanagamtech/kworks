@@ -17,6 +17,19 @@ export interface AppUpdateInfo {
 
 const APPLIED_UPDATE_KEY = 'kworks_applied_update_id';
 const CURRENT_APP_VERSION = '1.0.0';
+const CURRENT_BUILD_NUMBER = 1;
+
+function isVersionGreater(serverVer: string, currentVer: string): boolean {
+  const sParts = (serverVer || '').split('.').map((p) => parseInt(p, 10) || 0);
+  const cParts = (currentVer || '').split('.').map((p) => parseInt(p, 10) || 0);
+  for (let i = 0; i < Math.max(sParts.length, cParts.length); i++) {
+    const s = sParts[i] || 0;
+    const c = cParts[i] || 0;
+    if (s > c) return true;
+    if (s < c) return false;
+  }
+  return false;
+}
 
 export function useAppUpdate() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -43,12 +56,15 @@ export function useAppUpdate() {
           const serverUpdate: AppUpdateInfo = json.data;
           const appliedId = await AsyncStorage.getItem(APPLIED_UPDATE_KEY);
 
-          // Check if server version is newer than current or has new broadcast ID
-          const isNewerVersion =
-            serverUpdate.version !== CURRENT_APP_VERSION ||
-            (serverUpdate.updateId && serverUpdate.updateId !== appliedId && serverUpdate.updateId !== 'upd_v1_0_0');
+          // Only trigger if server version or build is strictly greater than current app
+          const hasNewerSemanticVersion = isVersionGreater(serverUpdate.version, CURRENT_APP_VERSION);
+          const hasNewerBuildNumber =
+            Number(serverUpdate.buildNumber) > CURRENT_BUILD_NUMBER &&
+            serverUpdate.updateId &&
+            serverUpdate.updateId !== appliedId &&
+            serverUpdate.updateId !== 'upd_v1_0_0';
 
-          if (isNewerVersion) {
+          if (hasNewerSemanticVersion || hasNewerBuildNumber) {
             setUpdateInfo(serverUpdate);
             setUpdateAvailable(true);
             if (isManual) setStatusMessage(`New update v${serverUpdate.version} available!`);
