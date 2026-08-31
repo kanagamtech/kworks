@@ -27,6 +27,6 @@ services:
     dockerContext: ./site
     plan: free
     region: singapore
-    buildArgs:
+    envVars:
       - key: VITE_API_URL
         value: https://backend.kanagamtech.in
