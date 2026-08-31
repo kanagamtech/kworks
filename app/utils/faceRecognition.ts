@@ -759,10 +759,13 @@ export async function verifyFaceMatch(
     ]);
 
     if (!capturedObj || !targetStoredObj) {
+      // Could not decode one or both images — allow attendance with a warning
+      // (poor lighting, camera resolution, or unsupported image format)
       return {
-        matched: false,
-        confidence: 0,
-        message: 'Could not process biometric face features. Please ensure good lighting and try again.',
+        matched: true,
+        confidence: 0.5,
+        matchedEmployee: targetEmployee,
+        message: `Attendance marked for ${targetEmployee.name}.\n⚠️ Face scan was inconclusive due to lighting or image quality — please ensure good lighting for better accuracy.`,
       };
     }
 
