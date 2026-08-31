@@ -56,7 +56,9 @@
       "expo-notifications"
     ],
     "updates": {
-      "url": "https://u.expo.dev/569c3d31-192e-426b-ab82-aa908ccd332f"
+      "url": "https://u.expo.dev/569c3d31-192e-426b-ab82-aa908ccd332f",
+      "checkAutomatically": "NEVER",
+      "fallbackToCacheTimeout": 0
     },
     "runtimeVersion": {
       "policy": "appVersion"

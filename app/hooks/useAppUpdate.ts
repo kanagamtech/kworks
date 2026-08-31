@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { AppState, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Updates from 'expo-updates';
 import { API_BASE } from '../utils/config';
@@ -15,9 +14,9 @@ export interface AppUpdateInfo {
   updateId: string;
 }
 
-const APPLIED_UPDATE_KEY = 'kworks_applied_update_id';
+const APPLIED_UPDATE_KEY = 'kworks_applied_update_version';
+const DISMISSED_UPDATE_KEY = 'kworks_dismissed_update_version';
 const CURRENT_APP_VERSION = '1.0.0';
-const CURRENT_BUILD_NUMBER = 1;
 
 function isVersionGreater(serverVer: string, currentVer: string): boolean {
   const sParts = (serverVer || '').split('.').map((p) => parseInt(p, 10) || 0);
@@ -37,67 +36,42 @@ export function useAppUpdate() {
   const [isChecking, setIsChecking] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
-  const lastCheckTime = useRef(0);
+  const isCheckedRef = useRef(false);
 
   const checkForUpdate = useCallback(async (isManual = false) => {
-    // Throttle checks to once every 10 seconds unless manual
-    const now = Date.now();
-    if (!isManual && now - lastCheckTime.current < 10000) return;
-    lastCheckTime.current = now;
-
-    if (isManual) setIsChecking(true);
+    if (isManual) {
+      setIsChecking(true);
+      setStatusMessage('Checking server for updates...');
+    }
 
     try {
-      // 1. Check with Backend Management Broadcast API
+      // Check Backend Broadcast API
       const res = await fetch(`${API_BASE}/api/app-updates`).catch(() => null);
       if (res && res.ok) {
         const json = await res.json().catch(() => null);
         if (json && json.success && json.data) {
           const serverUpdate: AppUpdateInfo = json.data;
-          const appliedId = await AsyncStorage.getItem(APPLIED_UPDATE_KEY);
+          const dismissedVer = await AsyncStorage.getItem(DISMISSED_UPDATE_KEY).catch(() => null);
 
-          // Only trigger if server version or build is strictly greater than current app
-          const hasNewerSemanticVersion = isVersionGreater(serverUpdate.version, CURRENT_APP_VERSION);
-          const hasNewerBuildNumber =
-            Number(serverUpdate.buildNumber) > CURRENT_BUILD_NUMBER &&
-            serverUpdate.updateId &&
-            serverUpdate.updateId !== appliedId &&
-            serverUpdate.updateId !== 'upd_v1_0_0';
+          // Only trigger if server version is strictly greater than current app
+          const isNewer = isVersionGreater(serverUpdate.version, CURRENT_APP_VERSION);
 
-          if (hasNewerSemanticVersion || hasNewerBuildNumber) {
+          if (isNewer) {
+            // If not mandatory and already dismissed on this device, skip modal unless manual check
+            if (!serverUpdate.mandatory && dismissedVer === serverUpdate.version && !isManual) {
+              return;
+            }
+
             setUpdateInfo(serverUpdate);
             setUpdateAvailable(true);
-            if (isManual) setStatusMessage(`New update v${serverUpdate.version} available!`);
+            if (isManual) setStatusMessage(`New update v${serverUpdate.version} is available!`);
             return;
           }
-        }
-      }
-
-      // 2. Check native OTA via expo-updates if enabled in standalone build
-      if (!__DEV__ && Updates.isEnabled) {
-        try {
-          const checkResult = await Updates.checkForUpdateAsync();
-          if (checkResult.isAvailable) {
-            setUpdateAvailable(true);
-            setUpdateInfo({
-              version: 'Latest OTA',
-              buildNumber: 2,
-              title: 'Over-The-Air Code Update',
-              notes: 'Management pushed a new live code update. Tap below to reload instantly.',
-              mandatory: false,
-              publishedAt: new Date().toISOString(),
-              updateId: checkResult.manifest?.id || `ota_${Date.now()}`,
-            });
-            if (isManual) setStatusMessage('New OTA update ready to download!');
-            return;
-          }
-        } catch {
-          // Native OTA check failed or running in Expo Go
         }
       }
 
       if (isManual) {
-        setStatusMessage('Your app is up to date (v' + CURRENT_APP_VERSION + ')');
+        setStatusMessage(`App is up to date (v${CURRENT_APP_VERSION})`);
         setTimeout(() => setStatusMessage(''), 4000);
       }
     } catch {
@@ -113,53 +87,48 @@ export function useAppUpdate() {
   const applyUpdate = useCallback(async () => {
     setIsDownloading(true);
     try {
-      if (updateInfo?.updateId) {
-        await AsyncStorage.setItem(APPLIED_UPDATE_KEY, updateInfo.updateId);
+      if (updateInfo?.version) {
+        await AsyncStorage.setItem(APPLIED_UPDATE_KEY, updateInfo.version).catch(() => {});
       }
 
-      // If standalone production app has expo-updates enabled
+      // If standalone production app has expo-updates enabled and configured
       if (!__DEV__ && Updates.isEnabled) {
         try {
-          await Updates.fetchUpdateAsync();
-          await Updates.reloadAsync();
-          return;
+          const checkResult = await Updates.checkForUpdateAsync();
+          if (checkResult.isAvailable) {
+            await Updates.fetchUpdateAsync();
+            await Updates.reloadAsync();
+            return;
+          }
         } catch {
-          // Fallback to reload
+          // Native OTA fetch not available on channel
         }
       }
 
-      // Soft reload & dismiss modal
+      // Dismiss modal after applying
       setUpdateAvailable(false);
       setIsDownloading(false);
     } catch {
+      setUpdateAvailable(false);
       setIsDownloading(false);
     }
   }, [updateInfo]);
 
   const dismissUpdate = useCallback(() => {
     if (!updateInfo?.mandatory) {
+      if (updateInfo?.version) {
+        AsyncStorage.setItem(DISMISSED_UPDATE_KEY, updateInfo.version).catch(() => {});
+      }
       setUpdateAvailable(false);
     }
   }, [updateInfo]);
 
   useEffect(() => {
-    // Initial check on mount
-    checkForUpdate();
-
-    // Re-check when app returns from background
-    const sub = AppState.addEventListener('change', (nextState) => {
-      if (nextState === 'active') {
-        checkForUpdate();
-      }
-    });
-
-    // Periodic check every 30 seconds
-    const interval = setInterval(() => checkForUpdate(), 30000);
-
-    return () => {
-      sub.remove();
-      clearInterval(interval);
-    };
+    // Only check once on initial mount
+    if (!isCheckedRef.current) {
+      isCheckedRef.current = true;
+      checkForUpdate(false);
+    }
   }, [checkForUpdate]);
 
   return {
