@@ -58,7 +58,7 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
   // Scanning & Biometric State
   const [progress, setProgress] = useState(0);
   const [scanning, setScanning] = useState(false);
-  const [status, setStatus] = useState('Position your face inside the circle');
+  const [status, setStatus] = useState('Tap Mark Attendance to check in');
 
   // Shift & Attendance Lifecycle
   const [done, setDone] = useState(false);
@@ -275,53 +275,30 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
     return () => clearInterval(interval);
   }, [markedTimestamp, punchedOut]);
 
-  // ── 5. Biometric Face Verification & Attendance Punch-In ────────────────────
+  // ── 5. Direct Attendance Punch-In (Face ID Temporarily Disabled) ───────────
   const handleMarkAttendance = async () => {
-    if (done || scanning || !cameraReady || !permission?.granted) return;
-
-    if (!isNetworkChecked) {
-      setStatus('Checking network connection...');
-      return;
-    }
-
-    if (!isOnline(networkState)) {
-      setStatus('🌐 No internet connection. Attendance requires online verification.');
-      Alert.alert('Network Required', 'Internet connection is required for biometric attendance verification. Please check your connection and try again.');
-      return;
-    }
+    if (done || scanning) return;
 
     setScanning(true);
-    setProgress(0.25);
-    setStatus('Capturing high-resolution biometric frame...');
-
-    await new Promise((r) => setTimeout(r, 450));
-    setProgress(0.55);
-    setStatus('Detecting face geometry & landmark anchors...');
+    setProgress(0.5);
+    setStatus('Recording attendance & GPS telemetry...');
 
     try {
-      const photo = await cameraRef.current?.takePictureAsync({ quality: 0.7 });
-      if (photo) {
-        setProgress(0.85);
-        setStatus('Matching biometric signature with profile...');
-
-        const faceResult = await verifyFaceMatch(photo.uri, user?.email, registeredEmployees);
-        if (faceResult.matched) {
-          setProgress(1.0);
-          setStatus('Face verified successfully!');
-          success(photo.uri);
-        } else {
-          setMismatchMsg(faceResult.message || 'Face did not match registered employee profile.');
-          setShowMismatchModal(true);
-          resetProgress();
-          setStatus('Face verification failed. Please try again.');
-        }
-      } else {
-        setStatus('Camera capture failed. Please try again.');
-        resetProgress();
+      let capturedUri = user?.photoUri || '';
+      if (cameraReady && permission?.granted) {
+        try {
+          const photo = await cameraRef.current?.takePictureAsync({ quality: 0.6 });
+          if (photo?.uri) capturedUri = photo.uri;
+        } catch {}
       }
+
+      setProgress(1.0);
+      setStatus('Attendance marked successfully!');
+      success(capturedUri);
     } catch {
-      setStatus('Capture failed. Please try again.');
-      resetProgress();
+      // Fallback: still mark attendance even if camera fails
+      setProgress(1.0);
+      success(user?.photoUri || '');
     } finally {
       setScanning(false);
     }
@@ -482,13 +459,8 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
 
   // ── Authentication Check ───────────────────────────────────────────────────
   const isGuest = !user || !user.email || user.email === 'guest@kworks.com';
-  const isRegistered = registeredEmployees.length === 0
-    ? true
-    : registeredEmployees.some(
-        (e) => e.email?.trim().toLowerCase() === user?.email?.trim().toLowerCase()
-      );
 
-  if (isGuest || !isRegistered) {
+  if (isGuest) {
     return (
       <View style={styles.root}>
         <MorningBackground />
@@ -497,18 +469,14 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
             <Pressable onPress={onDone} style={styles.backBtn}>
               <Text style={styles.backText}>{'<'} Back</Text>
             </Pressable>
-            <Text style={styles.title}>Biometric Attendance</Text>
+            <Text style={styles.title}>Attendance Terminal</Text>
             <View style={styles.backBtn} />
           </View>
           <View style={styles.blockedCard}>
             <Text style={{ fontSize: 52, marginBottom: 16 }}>🔒</Text>
-            <Text style={styles.blockedTitle}>
-              {isGuest ? 'Employee Login Required' : 'Account Not Onboarded'}
-            </Text>
+            <Text style={styles.blockedTitle}>Employee Login Required</Text>
             <Text style={styles.blockedSub}>
-              {isGuest
-                ? 'You must be logged in with your employee account to mark biometric attendance.\n\nPlease log in first.'
-                : `Your account (${user?.email}) has not been onboarded in the management database.\n\nPlease contact your HR or Manager to register your face.`}
+              You must be logged in with your employee account to mark attendance.\n\nPlease log in first.
             </Text>
             <Pressable style={styles.blockedBtn} onPress={onDone}>
               <Text style={styles.blockedBtnText}>Return to Home</Text>
@@ -716,14 +684,13 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
                 style={[
                   styles.markAttendanceBtn,
                   scanning && styles.markAttendanceBtnScanning,
-                  !readyToScan && styles.markAttendanceBtnDisabled,
-                  !isOnline(networkState) && styles.markAttendanceBtnDisabled,
+                  done && styles.markAttendanceBtnDisabled,
                 ]}
-                disabled={!readyToScan || scanning || !isOnline(networkState)}
+                disabled={scanning || done}
                 onPress={handleMarkAttendance}
               >
                 <Text style={styles.markAttendanceBtnText}>
-                  {scanning ? 'VERIFYING FACE...' : 'MARK ATTENDANCE'}
+                  {scanning ? 'MARKING ATTENDANCE...' : 'MARK ATTENDANCE'}
                 </Text>
               </Pressable>
             </View>
