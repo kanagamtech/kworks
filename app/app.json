@@ -14,7 +14,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kangamtech.kworks",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "KwOrKs uses your camera to capture your attendance.",
+        "NSLocationWhenInUseUsageDescription": "KwOrKs uses your location to record where you mark your attendance.",
+        "NSPhotoLibraryUsageDescription": "KwOrKs uses your photo library to set your profile picture."
+      }
     },
     "android": {
       "package": "com.kangamtech.kworks",
