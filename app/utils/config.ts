@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 
 // ─── Production backend URL ───────────────────────────────────────────────────
 // Set this to your live Render.com backend URL:
-const PRODUCTION_BACKEND_URL = 'https://kworks-backend.onrender.com';
+const PRODUCTION_BACKEND_URL = 'https://kworks-2q0c.onrender.com';
 
 // ─── Local development fallback ───────────────────────────────────────────────
 // Your machine's LAN IP — only used if PRODUCTION_BACKEND_URL is empty.

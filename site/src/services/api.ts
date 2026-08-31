@@ -1,4 +1,4 @@
-const RAW_URL = ((import.meta as any).env?.VITE_API_URL || 'https://kworks-backend.onrender.com').trim().replace(/\/+$/, '');
+const RAW_URL = ((import.meta as any).env?.VITE_API_URL || 'https://kworks-2q0c.onrender.com').trim().replace(/\/+$/, '');
 const API_BASE = RAW_URL.endsWith('/api') ? RAW_URL : `${RAW_URL}/api`;
 
 const STORAGE_KEYS = {
