@@ -18,10 +18,21 @@ import LoginScreen from './screens/LoginScreen';
 import NotificationScreen from './screens/NotificationScreen';
 import ClaimsScreen from './screens/ClaimsScreen';
 import ChatScreen from './screens/ChatScreen';
+import * as Notifications from 'expo-notifications';
 import { API_BASE } from './utils/config';
 import { useAppUpdate } from './hooks/useAppUpdate';
 import UpdateModal from './components/UpdateModal';
 import type { UserProfile } from './types';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 if (__DEV__) {
   const originalWarn = console.warn;
@@ -193,6 +204,64 @@ function AppInner() {
     const interval = setInterval(pulse, 20000);
     return () => clearInterval(interval);
   }, []);
+
+  // ── Global Chat Notification Poller ──────────────────────────────────────────
+  const lastKnownChatIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.email) return;
+
+    if (Platform.OS !== 'web') {
+      Notifications.getPermissionsAsync().then((perms) => {
+        if (perms.status !== 'granted') {
+          Notifications.requestPermissionsAsync();
+        }
+      });
+    }
+
+    const checkGlobalChat = () => {
+      fetch(`${API_BASE}/api/chat`)
+        .then((res) => res.json())
+        .then((res) => {
+          if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+            const latest = res.data[res.data.length - 1];
+            if (!latest || latest.isDeleted) return;
+
+            if (lastKnownChatIdRef.current && lastKnownChatIdRef.current !== latest.id) {
+              const myEmail = user.email.toLowerCase();
+              const isFromOther = latest.from?.toLowerCase() !== myEmail;
+              const isDirectToMe = latest.to?.toLowerCase() === myEmail;
+              const isGroupMsg = latest.to?.startsWith('grp_');
+
+              if (isFromOther && (isDirectToMe || isGroupMsg)) {
+                if (screen !== 'chat') {
+                  const senderName = latest.from?.split('@')[0] || 'Someone';
+                  const title = isGroupMsg ? '💬 KwOrKs Group' : `💬 ${senderName}`;
+                  const body = latest.text || (latest.photo ? '📷 Sent a photo' : '📄 Sent a document');
+
+                  if (Platform.OS !== 'web') {
+                    Notifications.scheduleNotificationAsync({
+                      content: {
+                        title,
+                        body,
+                        sound: 'default',
+                      },
+                      trigger: null,
+                    }).catch(() => {});
+                  }
+                }
+              }
+            }
+            lastKnownChatIdRef.current = latest.id;
+          }
+        })
+        .catch(() => {});
+    };
+
+    checkGlobalChat();
+    const interval = setInterval(checkGlobalChat, 3500);
+    return () => clearInterval(interval);
+  }, [user, screen]);
 
   const handleLogout = () => {
     setUser(null);

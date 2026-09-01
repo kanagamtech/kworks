@@ -593,6 +593,25 @@ const server = http.createServer(async (req, res) => {
         }
       }
 
+      // Notifications Routes
+      if (pathname === '/api/notifications') {
+        if (req.method === 'GET') {
+          return protectedRoute(async () => {
+            const urlObj = new URL(req.url, `http://${req.headers.host}`);
+            const userEmail = urlObj.searchParams.get('userEmail');
+            const data = db.getNotifications(userEmail);
+            return sendJSON(res, 200, { success: true, data });
+          }, 'notices:read')(req, res);
+        }
+        if (req.method === 'POST') {
+          return protectedRoute(async () => {
+            const body = await parseBody(req);
+            const record = db.addNotification(body);
+            return sendJSON(res, 200, { success: true, data: record });
+          }, 'notices:read')(req, res);
+        }
+      }
+
       // Chat Read Status
       if (pathname === '/api/chat/read' && req.method === 'POST') {
         return protectedRoute(async () => {

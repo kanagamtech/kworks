@@ -105,7 +105,21 @@ class Database {
   async syncToMongo() {
     if (!getIsConnected()) return;
     try {
-      // Sync companies
+      // 1. Restore chat messages and groups from MongoDB into memory
+      const mongoMsgs = await Models.ChatMessage.find({}).lean().catch(() => []);
+      if (mongoMsgs && mongoMsgs.length > 0) {
+        this.data.chat_messages = mongoMsgs;
+      }
+      const mongoGroups = await Models.ChatGroup.find({}).lean().catch(() => []);
+      if (mongoGroups && mongoGroups.length > 0) {
+        this.data.chat_groups = mongoGroups;
+      }
+      const mongoNotifs = await Models.Notification.find({}).lean().catch(() => []);
+      if (mongoNotifs && mongoNotifs.length > 0) {
+        this.data.notifications = mongoNotifs;
+      }
+
+      // 2. Sync companies
       for (const c of this.getCompanies()) {
         await Models.Company.updateOne({ name: c }, { name: c }, { upsert: true }).catch(() => {});
       }
@@ -124,6 +138,14 @@ class Database {
       // Sync food counts
       for (const fc of this.data.food_counts || []) {
         await Models.FoodCount.updateOne({ id: fc.id }, fc, { upsert: true }).catch(() => {});
+      }
+      // Sync chat messages
+      for (const msg of this.data.chat_messages || []) {
+        await Models.ChatMessage.updateOne({ id: msg.id }, msg, { upsert: true }).catch(() => {});
+      }
+      // Sync chat groups
+      for (const grp of this.data.chat_groups || []) {
+        await Models.ChatGroup.updateOne({ id: grp.id }, grp, { upsert: true }).catch(() => {});
       }
       // Sync notifications
       for (const notif of this.data.notifications || []) {
@@ -416,6 +438,9 @@ class Database {
     }
 
     this.save();
+    if (getIsConnected()) {
+      Models.ChatMessage.create(item).catch(() => {});
+    }
     return item;
   }
 
@@ -430,6 +455,9 @@ class Database {
       msg.reactions[userEmail] = reaction;
     }
     this.save();
+    if (getIsConnected()) {
+      Models.ChatMessage.updateOne({ id: msgId }, { reactions: msg.reactions }).catch(() => {});
+    }
     return msg;
   }
 
@@ -458,6 +486,9 @@ class Database {
     msg.deletedAt = new Date().toISOString();
 
     this.save();
+    if (getIsConnected()) {
+      Models.ChatMessage.updateOne({ id: msgId }, msg).catch(() => {});
+    }
     return { success: true, data: msg };
   }
 
@@ -481,6 +512,9 @@ class Database {
     msg.editedAt = new Date().toISOString();
 
     this.save();
+    if (getIsConnected()) {
+      Models.ChatMessage.updateOne({ id: msgId }, msg).catch(() => {});
+    }
     return { success: true, data: msg };
   }
 
@@ -517,6 +551,9 @@ class Database {
     if (!this.data.chat_groups) this.data.chat_groups = [];
     this.data.chat_groups.push(item);
     this.save();
+    if (getIsConnected()) {
+      Models.ChatGroup.create(item).catch(() => {});
+    }
     return item;
   }
 
@@ -529,6 +566,9 @@ class Database {
     if (!grp.members.some(m => m.toLowerCase() === normalized)) {
       grp.members.push(normalized);
       this.save();
+      if (getIsConnected()) {
+        Models.ChatGroup.updateOne({ id: groupId }, { members: grp.members }).catch(() => {});
+      }
     }
     return grp;
   }
@@ -541,6 +581,9 @@ class Database {
     const normalized = memberEmail.trim().toLowerCase();
     grp.members = grp.members.filter(m => m.toLowerCase() !== normalized);
     this.save();
+    if (getIsConnected()) {
+      Models.ChatGroup.updateOne({ id: groupId }, { members: grp.members }).catch(() => {});
+    }
     return grp;
   }
 

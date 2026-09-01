@@ -16,11 +16,16 @@ import {
   View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import Text from '../components/AppText';
 import MorningBackground from '../components/MorningBackground';
 import { useResponsive } from '../hooks/useResponsive';
 import { API_BASE } from '../utils/config';
 import type { UserProfile } from '../types';
+
+const CHAT_CACHE_KEY = 'kworks_chat_messages_cache';
+const GROUPS_CACHE_KEY = 'kworks_chat_groups_cache';
 
 const BRAND = {
   primary: '#D7AB6A',
@@ -179,6 +184,31 @@ export default function ChatScreen({ onBack, user }: Props) {
       .catch(() => {});
   }, [user]);
 
+  // 1.5. Restore cached chat messages & groups on mount
+  useEffect(() => {
+    AsyncStorage.getItem(CHAT_CACHE_KEY)
+      .then((raw) => {
+        if (raw) {
+          const cached = JSON.parse(raw);
+          if (Array.isArray(cached) && cached.length > 0) {
+            setAllMessages(cached);
+          }
+        }
+      })
+      .catch(() => {});
+
+    AsyncStorage.getItem(GROUPS_CACHE_KEY)
+      .then((raw) => {
+        if (raw) {
+          const cached = JSON.parse(raw);
+          if (Array.isArray(cached) && cached.length > 0) {
+            setGroups(cached);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // 2. Fetch groups
   const fetchGroups = () => {
     fetch(`${API_BASE}/api/chat/groups`)
@@ -192,6 +222,7 @@ export default function ChatScreen({ onBack, user }: Props) {
             g.creator?.toLowerCase().trim() === userEmail
           );
           setGroups(myGroups);
+          AsyncStorage.setItem(GROUPS_CACHE_KEY, JSON.stringify(myGroups)).catch(() => {});
         }
       })
       .catch(() => {});
@@ -213,6 +244,7 @@ export default function ChatScreen({ onBack, user }: Props) {
         .then((res) => {
           if (res.success && Array.isArray(res.data)) {
             setAllMessages(res.data);
+            AsyncStorage.setItem(CHAT_CACHE_KEY, JSON.stringify(res.data)).catch(() => {});
 
             // Check if a new message arrived for banner notification
             if (lastMsgCountRef.current > 0 && res.data.length > lastMsgCountRef.current) {
@@ -224,11 +256,23 @@ export default function ChatScreen({ onBack, user }: Props) {
                   (selectedGroup && latest.to === selectedGroup.id);
 
                 if (!isCurrentConv) {
-                  // Trigger In-App Notification Toast!
+                  // Trigger In-App & Native System Notification!
                   const senderContact = contacts.find((c) => c.email.toLowerCase() === latest.from?.toLowerCase());
                   const senderGroup = groups.find((g) => g.id === latest.to);
                   const senderTitle = senderGroup ? `👥 ${senderGroup.name}` : senderContact ? senderContact.name : latest.from;
                   const snippet = latest.text || (latest.photo ? '📷 Sent a photo' : '📄 Sent a document');
+
+                  // Native Android/iOS system notification
+                  if (Platform.OS !== 'web') {
+                    Notifications.scheduleNotificationAsync({
+                      content: {
+                        title: `💬 ${senderTitle}`,
+                        body: snippet,
+                        sound: 'default',
+                      },
+                      trigger: null,
+                    }).catch(() => {});
+                  }
 
                   setBannerNotif({
                     sender: senderTitle,

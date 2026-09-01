@@ -116,6 +116,39 @@ const AppUpdateSchema = new mongoose.Schema({
   updateId: { type: String, default: 'upd_v1_0_0' },
 });
 
+const ChatMessageSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  from: { type: String, required: true },
+  to: { type: String, required: true },
+  text: { type: String },
+  photo: { type: String },
+  document: {
+    name: String,
+    size: String,
+    type: String,
+    dataUri: String,
+  },
+  status: { type: String, default: 'delivered' },
+  reactions: { type: Object, default: {} },
+  replyTo: { type: Object },
+  isSecret: { type: Boolean, default: false },
+  expiresAt: { type: Number },
+  isDeleted: { type: Boolean, default: false },
+  deletedBy: { type: String },
+  deletedAt: { type: String },
+  isEdited: { type: Boolean, default: false },
+  editedAt: { type: String },
+  timestamp: { type: String, default: () => new Date().toISOString() },
+});
+
+const ChatGroupSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  name: { type: String, required: true },
+  members: [{ type: String }],
+  created_at: { type: String, default: () => new Date().toISOString() },
+  creator: { type: String },
+});
+
 const Models = {
   Employee: mongoose.models.Employee || mongoose.model('Employee', EmployeeSchema),
   Attendance: mongoose.models.Attendance || mongoose.model('Attendance', AttendanceSchema),
@@ -127,6 +160,8 @@ const Models = {
   Claim: mongoose.models.Claim || mongoose.model('Claim', ClaimSchema),
   Ticket: mongoose.models.Ticket || mongoose.model('Ticket', TicketSchema),
   AppUpdate: mongoose.models.AppUpdate || mongoose.model('AppUpdate', AppUpdateSchema),
+  ChatMessage: mongoose.models.ChatMessage || mongoose.model('ChatMessage', ChatMessageSchema),
+  ChatGroup: mongoose.models.ChatGroup || mongoose.model('ChatGroup', ChatGroupSchema),
 };
 
 let isConnected = false;
