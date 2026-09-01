@@ -565,6 +565,18 @@ const server = http.createServer(async (req, res) => {
       if (pathname === '/api/chat') {
         if (req.method === 'GET') {
           return protectedRoute(async () => {
+            // Always query MongoDB directly for freshest data (bypasses in-memory startup race)
+            const { getIsConnected, Models } = require('./db/mongo');
+            if (getIsConnected()) {
+              try {
+                const msgs = await Models.ChatMessage.find({}).sort({ timestamp: 1 }).lean();
+                // Sync to in-memory so other operations have latest state
+                db.data.chat_messages = msgs;
+                return sendJSON(res, 200, { success: true, data: msgs });
+              } catch (e) {
+                console.error('[KwOrKs] MongoDB chat fetch failed, using in-memory:', e.message);
+              }
+            }
             return sendJSON(res, 200, { success: true, data: db.getChatMessages() });
           }, 'chat:read')(req, res);
         }
@@ -581,6 +593,17 @@ const server = http.createServer(async (req, res) => {
       if (pathname === '/api/chat/groups') {
         if (req.method === 'GET') {
           return protectedRoute(async () => {
+            // Always query MongoDB directly for freshest data
+            const { getIsConnected, Models } = require('./db/mongo');
+            if (getIsConnected()) {
+              try {
+                const groups = await Models.ChatGroup.find({}).lean();
+                db.data.chat_groups = groups;
+                return sendJSON(res, 200, { success: true, data: groups });
+              } catch (e) {
+                console.error('[KwOrKs] MongoDB groups fetch failed, using in-memory:', e.message);
+              }
+            }
             return sendJSON(res, 200, { success: true, data: db.getChatGroups() });
           }, 'chat:read')(req, res);
         }
