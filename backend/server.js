@@ -814,7 +814,23 @@ function startHeartbeatEngine() {
   }, INTERVAL_MS);
 }
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[KwOrKs Backend Server] Running on port ${PORT} (0.0.0.0)`);
-  startHeartbeatEngine();
+
+// Wait for MongoDB to fully load data before starting the server
+// This prevents race conditions where requests arrive before chat data is restored
+async function startServer() {
+  // Give MongoDB init time to complete (it was called in Database constructor)
+  await db.initReady;
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`[KwOrKs Backend Server] Running on port ${PORT} (0.0.0.0)`);
+    startHeartbeatEngine();
+  });
+}
+
+startServer().catch((err) => {
+  console.error('[KwOrKs] Fatal startup error:', err);
+  // Fall back to immediate start even if MongoDB fails
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`[KwOrKs Backend Server] Running on port ${PORT} (MongoDB unavailable)`);
+    startHeartbeatEngine();
+  });
 });

@@ -21,7 +21,7 @@ import ChatScreen from './screens/ChatScreen';
 import * as Notifications from 'expo-notifications';
 import { API_BASE } from './utils/config';
 import { useAppUpdate } from './hooks/useAppUpdate';
-import UpdateModal from './components/UpdateModal';
+// UpdateModal removed — updates are fully silent via EAS OTA background bundle
 import type { UserProfile } from './types';
 
 Notifications.setNotificationHandler({
@@ -78,19 +78,9 @@ const SPLASH_FADE_MS = 500;
 function Screen({
   children,
   onOpenNotifications,
-  updateAvailable,
-  updateInfo,
-  isDownloading,
-  onApply,
-  onDismiss,
 }: {
   children: ReactNode;
   onOpenNotifications?: () => void;
-  updateAvailable?: boolean;
-  updateInfo?: any;
-  isDownloading?: boolean;
-  onApply?: () => void;
-  onDismiss?: () => void;
 }) {
   return (
     <View style={styles.screen}>
@@ -98,13 +88,6 @@ function Screen({
       <MorningBackground />
       {children}
       {onOpenNotifications ? <SiteNotifications onOpen={onOpenNotifications} /> : null}
-      <UpdateModal
-        visible={false}
-        updateInfo={updateInfo}
-        isDownloading={false}
-        onApply={() => {}}
-        onDismiss={() => {}}
-      />
     </View>
   );
 }
@@ -270,23 +253,11 @@ function AppInner() {
     setScreen('login');
   };
 
-  const {
-    updateAvailable,
-    updateInfo,
-    isDownloading,
-    applyUpdate,
-    dismissUpdate,
-  } = useAppUpdate();
+  // useAppUpdate handles silent background EAS OTA — no popup, no modal
+  useAppUpdate();
 
   const wrapScreen = (content: ReactNode) => (
-    <Screen
-      onOpenNotifications={() => setScreen('notifications')}
-      updateAvailable={updateAvailable}
-      updateInfo={updateInfo}
-      isDownloading={isDownloading}
-      onApply={applyUpdate}
-      onDismiss={dismissUpdate}
-    >
+    <Screen onOpenNotifications={() => setScreen('notifications')}>
       {content}
     </Screen>
   );

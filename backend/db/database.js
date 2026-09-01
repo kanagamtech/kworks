@@ -77,7 +77,8 @@ class Database {
   constructor() {
     this.data = this.load();
     this.seedManagementUsers();
-    this.initMongo();
+    // Expose a promise that resolves when MongoDB data is fully loaded
+    this.initReady = this.initMongo();
   }
 
   async seedManagementUsers() {
@@ -94,62 +95,88 @@ class Database {
       process.env.DATABASE_URL;
 
     if (mongoUri) {
+      console.log('[KwOrKs] Connecting to MongoDB...');
       const connected = await connectMongoDB(mongoUri);
       if (connected) {
-        // Sync existing in-memory/JSON data to MongoDB on initial startup
-        await this.syncToMongo();
+        console.log('[KwOrKs] MongoDB connected. Loading all data from MongoDB...');
+        await this.loadFromMongo();
+        console.log('[KwOrKs] MongoDB data restored successfully.');
+      } else {
+        console.warn('[KwOrKs] MongoDB connection failed. Using local JSON file.');
       }
+    } else {
+      console.log('[KwOrKs] No MONGODB_URI set. Using local JSON file only.');
+    }
+  }
+
+  async loadFromMongo() {
+    if (!getIsConnected()) return;
+    try {
+      // Restore ALL data from MongoDB (primary source of truth after redeploy)
+      const [mongoMsgs, mongoGroups, mongoNotifs, mongoEmployees, mongoAttendance, mongoNotices] = await Promise.all([
+        Models.ChatMessage.find({}).sort({ timestamp: 1 }).lean().catch(() => []),
+        Models.ChatGroup.find({}).lean().catch(() => []),
+        Models.Notification.find({}).sort({ timestamp: -1 }).lean().catch(() => []),
+        Models.Employee.find({}).lean().catch(() => []),
+        Models.Attendance.find({}).lean().catch(() => []),
+        Models.Notice.find({}).lean().catch(() => []),
+      ]);
+
+      if (mongoMsgs && mongoMsgs.length > 0) {
+        this.data.chat_messages = mongoMsgs;
+        console.log(`[KwOrKs] Restored ${mongoMsgs.length} chat messages from MongoDB`);
+      }
+      if (mongoGroups && mongoGroups.length > 0) {
+        this.data.chat_groups = mongoGroups;
+        console.log(`[KwOrKs] Restored ${mongoGroups.length} chat groups from MongoDB`);
+      }
+      if (mongoNotifs && mongoNotifs.length > 0) {
+        this.data.notifications = mongoNotifs;
+      }
+      if (mongoEmployees && mongoEmployees.length > 0) {
+        this.data.employees = mongoEmployees;
+        console.log(`[KwOrKs] Restored ${mongoEmployees.length} employees from MongoDB`);
+      }
+      if (mongoAttendance && mongoAttendance.length > 0) {
+        this.data.attendance = mongoAttendance;
+      }
+      if (mongoNotices && mongoNotices.length > 0) {
+        this.data.notices = mongoNotices;
+      }
+
+      // Save the restored state to local JSON file as a backup cache
+      this.save();
+    } catch (e) {
+      console.error('[KwOrKs MongoDB] Data restore error:', e.message);
     }
   }
 
   async syncToMongo() {
     if (!getIsConnected()) return;
     try {
-      // 1. Restore chat messages and groups from MongoDB into memory
-      const mongoMsgs = await Models.ChatMessage.find({}).lean().catch(() => []);
-      if (mongoMsgs && mongoMsgs.length > 0) {
-        this.data.chat_messages = mongoMsgs;
-      }
-      const mongoGroups = await Models.ChatGroup.find({}).lean().catch(() => []);
-      if (mongoGroups && mongoGroups.length > 0) {
-        this.data.chat_groups = mongoGroups;
-      }
-      const mongoNotifs = await Models.Notification.find({}).lean().catch(() => []);
-      if (mongoNotifs && mongoNotifs.length > 0) {
-        this.data.notifications = mongoNotifs;
-      }
-
-      // 2. Sync companies
-      for (const c of this.getCompanies()) {
-        await Models.Company.updateOne({ name: c }, { name: c }, { upsert: true }).catch(() => {});
-      }
-      // Sync employees
-      for (const emp of this.data.employees || []) {
-        await Models.Employee.updateOne({ id: emp.id }, emp, { upsert: true }).catch(() => {});
-      }
-      // Sync attendance
-      for (const att of this.data.attendance || []) {
-        await Models.Attendance.updateOne({ id: att.id }, att, { upsert: true }).catch(() => {});
-      }
-      // Sync notices
-      for (const notice of this.data.notices || []) {
-        await Models.Notice.updateOne({ id: notice.id }, notice, { upsert: true }).catch(() => {});
-      }
-      // Sync food counts
-      for (const fc of this.data.food_counts || []) {
-        await Models.FoodCount.updateOne({ id: fc.id }, fc, { upsert: true }).catch(() => {});
-      }
-      // Sync chat messages
+      // Sync chat messages to MongoDB
       for (const msg of this.data.chat_messages || []) {
-        await Models.ChatMessage.updateOne({ id: msg.id }, msg, { upsert: true }).catch(() => {});
+        await Models.ChatMessage.updateOne({ id: msg.id }, { $set: msg }, { upsert: true }).catch(() => {});
       }
       // Sync chat groups
       for (const grp of this.data.chat_groups || []) {
-        await Models.ChatGroup.updateOne({ id: grp.id }, grp, { upsert: true }).catch(() => {});
+        await Models.ChatGroup.updateOne({ id: grp.id }, { $set: grp }, { upsert: true }).catch(() => {});
+      }
+      // Sync employees
+      for (const emp of this.data.employees || []) {
+        await Models.Employee.updateOne({ id: emp.id }, { $set: emp }, { upsert: true }).catch(() => {});
+      }
+      // Sync attendance
+      for (const att of this.data.attendance || []) {
+        await Models.Attendance.updateOne({ id: att.id }, { $set: att }, { upsert: true }).catch(() => {});
+      }
+      // Sync notices
+      for (const notice of this.data.notices || []) {
+        await Models.Notice.updateOne({ id: notice.id }, { $set: notice }, { upsert: true }).catch(() => {});
       }
       // Sync notifications
       for (const notif of this.data.notifications || []) {
-        await Models.Notification.updateOne({ id: notif.id }, notif, { upsert: true }).catch(() => {});
+        await Models.Notification.updateOne({ id: notif.id }, { $set: notif }, { upsert: true }).catch(() => {});
       }
     } catch (e) {
       console.error('[KwOrKs MongoDB] Sync error:', e.message);
