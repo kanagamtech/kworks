@@ -589,6 +589,54 @@ const server = http.createServer(async (req, res) => {
         }
       }
 
+      // Chat Read Status
+      if (pathname === '/api/chat/read' && req.method === 'POST') {
+        return protectedRoute(async () => {
+          const body = await parseBody(req);
+          db.markChatAsRead(body.userEmail, body.conversationId);
+          return sendJSON(res, 200, { success: true });
+        }, 'chat:create')(req, res);
+      }
+
+      // Chat Message Reactions
+      const chatReactMatch = pathname.match(/^\/api\/chat\/messages\/([^\/]+)\/react$/);
+      if (chatReactMatch && req.method === 'POST') {
+        return protectedRoute(async () => {
+          const body = await parseBody(req);
+          const updated = db.reactToChatMessage(chatReactMatch[1], body.userEmail, body.reaction);
+          return sendJSON(res, 200, { success: true, data: updated });
+        }, 'chat:create')(req, res);
+      }
+
+      // Delete Chat Message
+      const chatDeleteMatch = pathname.match(/^\/api\/chat\/messages\/([^\/]+)$/);
+      if (chatDeleteMatch && req.method === 'DELETE') {
+        return protectedRoute(async () => {
+          const ok = db.deleteChatMessage(chatDeleteMatch[1]);
+          return sendJSON(res, 200, { success: ok });
+        }, 'chat:create')(req, res);
+      }
+
+      // Chat Group Member Add
+      const groupAddMatch = pathname.match(/^\/api\/chat\/groups\/([^\/]+)\/members$/);
+      if (groupAddMatch && req.method === 'POST') {
+        return protectedRoute(async () => {
+          const body = await parseBody(req);
+          const updated = db.addMemberToGroup(groupAddMatch[1], body.email);
+          return sendJSON(res, 200, { success: true, data: updated });
+        }, 'chat:create')(req, res);
+      }
+
+      // Chat Group Member Remove
+      const groupRemoveMatch = pathname.match(/^\/api\/chat\/groups\/([^\/]+)\/members\/([^\/]+)$/);
+      if (groupRemoveMatch && req.method === 'DELETE') {
+        return protectedRoute(async () => {
+          const email = decodeURIComponent(groupRemoveMatch[2]);
+          const updated = db.removeMemberFromGroup(groupRemoveMatch[1], email);
+          return sendJSON(res, 200, { success: true, data: updated });
+        }, 'chat:create')(req, res);
+      }
+
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8',

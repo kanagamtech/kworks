@@ -371,13 +371,95 @@ class Database {
   addChatMessage(msg) {
     const item = {
       id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      status: 'delivered',
+      reactions: {},
       ...msg,
       timestamp: new Date().toISOString(),
     };
     if (!this.data.chat_messages) this.data.chat_messages = [];
     this.data.chat_messages.push(item);
+
+    // Auto-generate notification for recipient or group members
+    try {
+      const sender = (this.data.employees || []).find(e => e.email?.toLowerCase() === msg.from?.toLowerCase());
+      const senderName = sender ? sender.name : (msg.from ? msg.from.split('@')[0] : 'Someone');
+      const previewText = msg.text || (msg.photo ? '📷 Photo' : (msg.document ? `📄 ${msg.document.name || 'Document'}` : 'New message'));
+
+      // Check if target is a group
+      const group = (this.data.chat_groups || []).find(g => g.id === msg.to);
+      if (group && Array.isArray(group.members)) {
+        group.members.forEach(memberEmail => {
+          if (memberEmail && memberEmail.toLowerCase() !== msg.from?.toLowerCase()) {
+            this.addNotification({
+              title: `💬 ${group.name} (${senderName})`,
+              message: previewText,
+              target: memberEmail,
+              type: 'chat',
+              groupId: group.id,
+              from: msg.from,
+            });
+          }
+        });
+      } else if (msg.to) {
+        // Direct 1-on-1 message
+        this.addNotification({
+          title: `💬 ${senderName}`,
+          message: previewText,
+          target: msg.to,
+          type: 'chat',
+          from: msg.from,
+        });
+      }
+    } catch (e) {
+      console.error('Error dispatching chat notification:', e);
+    }
+
     this.save();
     return item;
+  }
+
+  reactToChatMessage(msgId, userEmail, reaction) {
+    if (!this.data.chat_messages) return null;
+    const msg = this.data.chat_messages.find(m => m.id === msgId);
+    if (!msg) return null;
+    if (!msg.reactions) msg.reactions = {};
+    if (msg.reactions[userEmail] === reaction) {
+      delete msg.reactions[userEmail]; // toggle off
+    } else {
+      msg.reactions[userEmail] = reaction;
+    }
+    this.save();
+    return msg;
+  }
+
+  deleteChatMessage(msgId) {
+    if (!this.data.chat_messages) return false;
+    const idx = this.data.chat_messages.findIndex(m => m.id === msgId);
+    if (idx !== -1) {
+      this.data.chat_messages.splice(idx, 1);
+      this.save();
+      return true;
+    }
+    return false;
+  }
+
+  markChatAsRead(readerEmail, conversationPartnerOrGroupId) {
+    if (!this.data.chat_messages) return false;
+    let changed = false;
+    this.data.chat_messages.forEach(m => {
+      if (m.to?.toLowerCase() === readerEmail?.toLowerCase() &&
+          m.from?.toLowerCase() === conversationPartnerOrGroupId?.toLowerCase() &&
+          m.status !== 'read') {
+        m.status = 'read';
+        changed = true;
+      } else if (m.to === conversationPartnerOrGroupId && m.status !== 'read') {
+        // For groups
+        m.status = 'read';
+        changed = true;
+      }
+    });
+    if (changed) this.save();
+    return true;
   }
 
   getChatGroups() {
@@ -395,6 +477,30 @@ class Database {
     this.data.chat_groups.push(item);
     this.save();
     return item;
+  }
+
+  addMemberToGroup(groupId, memberEmail) {
+    if (!this.data.chat_groups) return null;
+    const grp = this.data.chat_groups.find(g => g.id === groupId);
+    if (!grp) return null;
+    if (!Array.isArray(grp.members)) grp.members = [];
+    const normalized = memberEmail.trim().toLowerCase();
+    if (!grp.members.some(m => m.toLowerCase() === normalized)) {
+      grp.members.push(normalized);
+      this.save();
+    }
+    return grp;
+  }
+
+  removeMemberFromGroup(groupId, memberEmail) {
+    if (!this.data.chat_groups) return null;
+    const grp = this.data.chat_groups.find(g => g.id === groupId);
+    if (!grp) return null;
+    if (!Array.isArray(grp.members)) return grp;
+    const normalized = memberEmail.trim().toLowerCase();
+    grp.members = grp.members.filter(m => m.toLowerCase() !== normalized);
+    this.save();
+    return grp;
   }
 
   getNotifications() {
