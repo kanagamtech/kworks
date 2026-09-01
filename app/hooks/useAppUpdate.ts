@@ -16,7 +16,7 @@ export interface AppUpdateInfo {
 
 const APPLIED_UPDATE_KEY = 'kworks_applied_update_version';
 const DISMISSED_UPDATE_KEY = 'kworks_dismissed_update_version';
-const CURRENT_APP_VERSION = '1.0.0';
+const CURRENT_APP_VERSION = '1.0.2';
 
 function isVersionGreater(serverVer: string, currentVer: string): boolean {
   const sParts = (serverVer || '').split('.').map((p) => parseInt(p, 10) || 0);
@@ -52,13 +52,15 @@ export function useAppUpdate() {
         if (json && json.success && json.data) {
           const serverUpdate: AppUpdateInfo = json.data;
           const dismissedVer = await AsyncStorage.getItem(DISMISSED_UPDATE_KEY).catch(() => null);
+          const appliedVer = await AsyncStorage.getItem(APPLIED_UPDATE_KEY).catch(() => null);
 
           // Only trigger if server version is strictly greater than current app
           const isNewer = isVersionGreater(serverUpdate.version, CURRENT_APP_VERSION);
 
           if (isNewer) {
-            // If not mandatory and already dismissed on this device, skip modal unless manual check
-            if (!serverUpdate.mandatory && dismissedVer === serverUpdate.version && !isManual) {
+            // If not mandatory and already dismissed OR applied on this device, skip unless manual check
+            const alreadyActioned = dismissedVer === serverUpdate.version || appliedVer === serverUpdate.version;
+            if (!serverUpdate.mandatory && alreadyActioned && !isManual) {
               return;
             }
 

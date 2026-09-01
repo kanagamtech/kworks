@@ -368,10 +368,9 @@ export const api = {
         headers: getAuthHeaders(),
         body: JSON.stringify(userData),
       });
-      const data = await res.json();
-      return data.success ? data.data : null;
-    } catch {
-      return null;
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, message: e.message || 'Failed to add user' };
     }
   },
 
@@ -382,20 +381,18 @@ export const api = {
         headers: getAuthHeaders(),
         body: JSON.stringify(updates),
       });
-      const data = await res.json();
-      return data.success ? data.data : null;
-    } catch {
-      return null;
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, message: e.message || 'Failed to update user' };
     }
   },
 
   async deleteManagementUser(id: string) {
     try {
       const res = await fetchWithAuth(`${API_BASE}/management-users/${id}`, { method: 'DELETE' });
-      const data = await res.json();
-      return data.success ? data.data : [];
-    } catch {
-      return [];
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, message: e.message || 'Failed to delete user' };
     }
   },
 

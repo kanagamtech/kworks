@@ -4,6 +4,7 @@ import {
   Animated,
   Easing,
   Image,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -302,7 +303,6 @@ export default function LoginScreen({ user, onSave, onBack, onLogout }: Props) {
 
   return (
     <View style={styles.root}>
-      <MorningBackground />
       <Animated.View style={[styles.container, { opacity: fade }]}>
         <View style={[styles.topBar, { paddingTop: 50 * scale }]}>
           {user ? (
@@ -313,13 +313,25 @@ export default function LoginScreen({ user, onSave, onBack, onLogout }: Props) {
             <View style={styles.backBtn} />
           )}
           <Text style={[styles.title, { fontSize: 20 * scale }]}>
-            {user ? 'Account Settings' : 'KwOrKs Secure Login'}
+            {user ? 'Account Settings' : ''}
           </Text>
           <View style={styles.backBtn} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={[styles.form, { maxWidth: formMaxWidth, transform: [{ translateY: isMobile ? -10 : 0 }] }]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1 }}
+        >
+          <ScrollView
+            contentContainerStyle={[
+              styles.content,
+              isMobile ? { justifyContent: 'flex-start', paddingTop: 10 } : null,
+            ]}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="none"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={[styles.form, { maxWidth: formMaxWidth }]}>
             
             {!user && (
               <View style={styles.welcomeBanner}>
@@ -514,6 +526,7 @@ export default function LoginScreen({ user, onSave, onBack, onLogout }: Props) {
             ) : null}
           </View>
         </ScrollView>
+      </KeyboardAvoidingView>
 
         <Modal visible={showCompanyModal} transparent animationType="fade" onRequestClose={() => setShowCompanyModal(false)}>
           <View style={styles.modalOverlay}>

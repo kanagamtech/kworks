@@ -60,14 +60,14 @@ const INITIAL_DATA = {
   companies: ['kanagamtech', 'amsems'],
   notifications: [],
   app_updates: {
-    version: '1.0.1',
-    buildNumber: 2,
-    title: '⚡ One-Tap Attendance & 20s Keep-Alive Update',
-    notes: '• Instant One-Tap Attendance Check-In\n• 20-second background server keep-alive pulse\n• Multi-platform Web & iOS support\n• Optimized biometric processing & UI fixes',
+    version: '1.0.0',
+    buildNumber: 1,
+    title: 'KwOrKs',
+    notes: 'Initial release',
     mandatory: false,
-    apkUrl: 'https://expo.dev/accounts/sabarees/projects/KwOrKs/builds/fc3b6893-4378-4b45-92f0-76509ba25aca',
+    apkUrl: '',
     publishedAt: new Date().toISOString(),
-    updateId: 'upd_v1_0_1',
+    updateId: 'upd_v1_0_0_base',
   },
   management_users: [],
 };
@@ -466,12 +466,12 @@ class Database {
       this.data.app_updates = {
         version: '1.0.0',
         buildNumber: 1,
-        title: 'KwOrKs Production Release',
-        notes: '• Biometric Face Attendance\n• Live GPS Telemetry Radar\n• Meal & Food Planning',
+        title: 'KwOrKs',
+        notes: 'Initial release',
         mandatory: false,
         apkUrl: '',
         publishedAt: new Date().toISOString(),
-        updateId: 'upd_v1_0_0',
+        updateId: 'upd_v1_0_0_base',
       };
       this.save();
     }
@@ -549,12 +549,19 @@ class Database {
     const idx = this.data.management_users.findIndex(u => u.id === id);
     if (idx === -1) return null;
     
-    if (updates.password) {
-      updates.passwordHash = await hashPassword(updates.password);
-      delete updates.password;
+    const cleanUpdates = { ...updates };
+    delete cleanUpdates.id;
+
+    if (cleanUpdates.email) {
+      cleanUpdates.email = cleanUpdates.email.trim().toLowerCase();
     }
+
+    if (cleanUpdates.password && typeof cleanUpdates.password === 'string' && cleanUpdates.password.trim()) {
+      cleanUpdates.passwordHash = await hashPassword(cleanUpdates.password.trim());
+    }
+    delete cleanUpdates.password;
     
-    this.data.management_users[idx] = { ...this.data.management_users[idx], ...updates };
+    this.data.management_users[idx] = { ...this.data.management_users[idx], ...cleanUpdates };
     this.save();
     const u = this.data.management_users[idx];
     return {
@@ -568,6 +575,15 @@ class Database {
   }
 
   deleteManagementUser(id) {
+    const target = this.data.management_users.find(u => u.id === id);
+    if (!target) return this.getManagementUsers();
+
+    // Prevent deleting the last remaining admin or super_admin
+    const adminCount = this.data.management_users.filter(u => u.role === 'super_admin' || u.role === 'admin').length;
+    if ((target.role === 'super_admin' || target.role === 'admin') && adminCount <= 1) {
+      throw new Error('Cannot delete the last remaining administrator account.');
+    }
+
     this.data.management_users = this.data.management_users.filter(u => u.id !== id);
     this.save();
     return this.getManagementUsers();

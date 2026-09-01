@@ -64,13 +64,36 @@ const LOGO_FADE_MS = 800;
 const LOGO_HOLD_MS = 500;
 const SPLASH_FADE_MS = 500;
 
-function Screen({ children, onOpenNotifications }: { children: ReactNode; onOpenNotifications?: () => void }) {
+function Screen({
+  children,
+  onOpenNotifications,
+  updateAvailable,
+  updateInfo,
+  isDownloading,
+  onApply,
+  onDismiss,
+}: {
+  children: ReactNode;
+  onOpenNotifications?: () => void;
+  updateAvailable?: boolean;
+  updateInfo?: any;
+  isDownloading?: boolean;
+  onApply?: () => void;
+  onDismiss?: () => void;
+}) {
   return (
     <View style={styles.screen}>
       <StatusBar style="light" />
       <MorningBackground />
       {children}
       {onOpenNotifications ? <SiteNotifications onOpen={onOpenNotifications} /> : null}
+      <UpdateModal
+        visible={!!updateAvailable}
+        updateInfo={updateInfo}
+        isDownloading={!!isDownloading}
+        onApply={onApply || (() => {})}
+        onDismiss={onDismiss || (() => {})}
+      />
     </View>
   );
 }
@@ -186,16 +209,16 @@ function AppInner() {
     dismissUpdate,
   } = useAppUpdate();
 
-  const AppScreen = ({ children }: { children: ReactNode }) => (
-    <Screen onOpenNotifications={() => setScreen('notifications')}>
-      {children}
-      <UpdateModal
-        visible={updateAvailable}
-        updateInfo={updateInfo}
-        isDownloading={isDownloading}
-        onApply={applyUpdate}
-        onDismiss={dismissUpdate}
-      />
+  const wrapScreen = (content: ReactNode) => (
+    <Screen
+      onOpenNotifications={() => setScreen('notifications')}
+      updateAvailable={updateAvailable}
+      updateInfo={updateInfo}
+      isDownloading={isDownloading}
+      onApply={applyUpdate}
+      onDismiss={dismissUpdate}
+    >
+      {content}
     </Screen>
   );
 
@@ -218,12 +241,12 @@ function AppInner() {
           }),
         ]).start();
         Animated.timing(contentOpacity, {
-          toValue: 1,
-          duration: LOGO_FADE_MS,
-          delay: 200,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver,
-        }).start();
+            toValue: 1,
+            duration: LOGO_FADE_MS,
+            delay: 200,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver,
+          }).start();
         SplashScreen.hideAsync().catch(() => {});
       }, LOGO_DELAY_MS)
     );
@@ -251,95 +274,75 @@ function AppInner() {
   }
 
   if (screen === 'attendance') {
-    return (
-      <AppScreen>
-        <AttendanceScreen
-          onDone={() => setScreen('home')}
-          onFoodCount={() => setScreen('foodcount')}
-          user={user}
-          onLogout={handleLogout}
-        />
-      </AppScreen>
+    return wrapScreen(
+      <AttendanceScreen
+        onDone={() => setScreen('home')}
+        onFoodCount={() => setScreen('foodcount')}
+        user={user}
+        onLogout={handleLogout}
+      />
     );
   }
 
   if (screen === 'foodcount') {
-    return (
-      <AppScreen>
-        <FoodCountScreen onBack={() => setScreen('attendance')} onSubmit={() => setScreen('home')} user={user} />
-      </AppScreen>
+    return wrapScreen(
+      <FoodCountScreen onBack={() => setScreen('attendance')} onSubmit={() => setScreen('home')} user={user} />
     );
   }
 
   if (screen === 'leave') {
-    return (
-      <AppScreen>
-        <LeaveScreen onBack={() => setScreen('home')} user={user} />
-      </AppScreen>
+    return wrapScreen(
+      <LeaveScreen onBack={() => setScreen('home')} user={user} />
     );
   }
 
   if (screen === 'notifications') {
-    return (
-      <AppScreen>
-        <NotificationScreen onBack={() => setScreen('home')} />
-      </AppScreen>
+    return wrapScreen(
+      <NotificationScreen onBack={() => setScreen('home')} />
     );
   }
 
   if (screen === 'support') {
-    return (
-      <AppScreen>
-        <SupportScreen onBack={() => setScreen('home')} user={user} />
-      </AppScreen>
+    return wrapScreen(
+      <SupportScreen onBack={() => setScreen('home')} user={user} />
     );
   }
 
   if (screen === 'login') {
-    return (
-      <AppScreen>
-        <LoginScreen
-          user={user}
-          onSave={handleSaveUser}
-          onBack={() => {
-            if (user) {
-              setScreen('home');
-            }
-          }}
-          onLogout={handleLogout}
-        />
-      </AppScreen>
+    return wrapScreen(
+      <LoginScreen
+        user={user}
+        onSave={handleSaveUser}
+        onBack={() => {
+          if (user) {
+            setScreen('home');
+          }
+        }}
+        onLogout={handleLogout}
+      />
     );
   }
 
   if (screen === 'claims') {
-    return (
-      <AppScreen>
-        <ClaimsScreen onBack={() => setScreen('home')} user={user} />
-      </AppScreen>
+    return wrapScreen(
+      <ClaimsScreen onBack={() => setScreen('home')} user={user} />
     );
   }
 
   if (screen === 'chat') {
-    return (
-      <AppScreen>
-        <ChatScreen onBack={() => setScreen('home')} user={user} />
-      </AppScreen>
+    return wrapScreen(
+      <ChatScreen onBack={() => setScreen('home')} user={user} />
     );
   }
 
   if (showHome) {
     if (!user) {
-      return (
-        <AppScreen>
-          <LoginScreen user={user} onSave={handleSaveUser} onBack={() => {}} onLogout={handleLogout} />
-        </AppScreen>
+      return wrapScreen(
+        <LoginScreen user={user} onSave={handleSaveUser} onBack={() => {}} onLogout={handleLogout} />
       );
     }
-    return (
-      <AppScreen>
-        <HomeScreen user={user} onLoginPress={() => setScreen('login')} onOpenAttendance={() => setScreen('attendance')} onOpenLeave={() => setScreen('leave')} onOpenNotifications={() => setScreen('notifications')} onOpenSupport={() => setScreen('support')} onOpenClaims={() => setScreen('claims')} onOpenChat={() => setScreen('chat')} />
-      </AppScreen>
+    return wrapScreen(
+      <HomeScreen user={user} onLoginPress={() => setScreen('login')} onOpenAttendance={() => setScreen('attendance')} onOpenLeave={() => setScreen('leave')} onOpenNotifications={() => setScreen('notifications')} onOpenSupport={() => setScreen('support')} onOpenClaims={() => setScreen('claims')} onOpenChat={() => setScreen('chat')} />
     );
   }
 

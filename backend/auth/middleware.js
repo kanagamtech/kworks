@@ -19,7 +19,7 @@ const PERMISSIONS = {
   manager: [
     'employees:*', 'attendance:*', 'food:*', 'leaves:*', 'notices:*', 'polls:*',
     'tickets:read', 'tickets:create', 'claims:manager', 'claims:read',
-    'updates:*', 'companies:read', 'dashboard:*', 'reports:*'
+    'updates:*', 'companies:read', 'management_users:*', 'dashboard:*', 'reports:*'
   ],
   hr: [
     'attendance:read', 'attendance:export', 'food:read', 'leaves:*',

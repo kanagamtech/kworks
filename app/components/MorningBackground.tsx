@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet, useWindowDimensions, View } from 'react-native';
+import React, { useEffect, useRef, memo } from 'react';
+import { Animated, Easing, StyleSheet, useWindowDimensions, View, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../theme';
 
@@ -21,10 +21,15 @@ const DOTS: FloatDot[] = Array.from({ length: 14 }, (_, n) => ({
   drift: 10 + ((n * 13) % 22),
 }));
 
-export default function MorningBackground() {
+function MorningBackground() {
   const { theme } = useTheme();
   const bgColors = theme.bgColors;
-  const { width, height } = useWindowDimensions();
+  const dims = useWindowDimensions();
+  const width = dims.width;
+  // On mobile web, virtual keyboard shrinks viewport height. Use screen height or max height to prevent layout jumps:
+  const height = Platform.OS === 'web' && typeof window !== 'undefined' && window.screen?.height
+    ? Math.max(dims.height, window.screen.height)
+    : dims.height;
   const progress = useRef(new Animated.Value(0)).current;
   const float = useRef(new Animated.Value(0)).current;
 
@@ -136,6 +141,8 @@ export default function MorningBackground() {
     </View>
   );
 }
+
+export default memo(MorningBackground);
 
 const styles = StyleSheet.create({
   container: {

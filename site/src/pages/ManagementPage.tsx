@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 
-type Role = 'admin' | 'manager' | 'hr' | 'it' | 'finance';
+type Role = 'super_admin' | 'admin' | 'manager' | 'hr' | 'it' | 'finance';
 
 const SITE_CREDS: Record<string, { email: string; pass: string }> = {
   super_admin: { email: 'superadmin@kworks.com', pass: 'SuperAdmin@2026!' },
@@ -13,6 +13,7 @@ const SITE_CREDS: Record<string, { email: string; pass: string }> = {
 };
 
 const ROLE_LABELS: Record<Role, string> = {
+  super_admin: 'Super Admin',
   admin: 'Admin',
   manager: 'Manager',
   hr: 'HR Executive',
@@ -20,13 +21,34 @@ const ROLE_LABELS: Record<Role, string> = {
   finance: 'Finance Manager',
 };
 
+const ROLE_COLORS: Record<Role, { bg: string; text: string; border: string }> = {
+  super_admin: { bg: 'rgba(123, 31, 162, 0.12)', text: '#7B1FA2', border: '#7B1FA2' },
+  admin: { bg: 'rgba(194, 24, 91, 0.12)', text: '#C2185B', border: '#C2185B' },
+  manager: { bg: 'rgba(215, 171, 106, 0.22)', text: '#7A4F1D', border: '#D7AB6A' },
+  hr: { bg: 'rgba(46, 125, 50, 0.12)', text: '#2E7D32', border: '#2E7D32' },
+  it: { bg: 'rgba(2, 136, 209, 0.12)', text: '#0288D1', border: '#0288D1' },
+  finance: { bg: 'rgba(230, 81, 0, 0.12)', text: '#E65100', border: '#E65100' },
+};
+
+const ROLE_DESCRIPTIONS: Record<Role, string> = {
+  super_admin: 'Full unrestricted system access, database reset & all controls',
+  admin: 'Full management: onboarding, attendance, food, leaves, notices, app updates & role management',
+  manager: 'General management: employee onboarding, attendance, leaves, claims, notices & role assignment',
+  hr: 'Human Resources: attendance logs & export, meal planning, leave approvals & notices',
+  it: 'Technical support: IT helpdesk tickets, OTA updates broadcast & announcements',
+  finance: 'Financial approvals: reimbursement claims, cash advances & meal headcounts',
+};
+
 const ROLE_PERMISSIONS: Record<Role, string[]> = {
-  admin: ['onboarding', 'attendance', 'food', 'leaves', 'notices', 'polls', 'tickets', 'claims', 'updates'],
-  manager: ['onboarding', 'attendance', 'food', 'leaves', 'notices', 'polls', 'claims', 'updates'],
+  super_admin: ['users', 'onboarding', 'attendance', 'food', 'leaves', 'notices', 'polls', 'tickets', 'claims', 'updates'],
+  admin: ['users', 'onboarding', 'attendance', 'food', 'leaves', 'notices', 'polls', 'tickets', 'claims', 'updates'],
+  manager: ['users', 'onboarding', 'attendance', 'food', 'leaves', 'notices', 'polls', 'claims', 'updates'],
   hr: ['onboarding', 'attendance', 'food', 'leaves', 'notices', 'polls'],
   it: ['tickets', 'updates', 'notices'],
   finance: ['claims', 'food', 'notices'],
 };
+
+type TabId = 'users' | 'onboarding' | 'attendance' | 'food' | 'leaves' | 'notices' | 'polls' | 'tickets' | 'claims' | 'updates';
 
 export const ManagementPage: React.FC = () => {
   // Auth State - Always starts as null so user must explicitly sign in
@@ -38,7 +60,7 @@ export const ManagementPage: React.FC = () => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'onboarding' | 'attendance' | 'food' | 'leaves' | 'notices' | 'polls' | 'tickets' | 'claims' | 'updates'>('onboarding');
+  const [activeTab, setActiveTab] = useState<TabId>('onboarding');
 
   // Data States
   const [employees, setEmployees] = useState<any[]>([]);
@@ -85,8 +107,34 @@ export const ManagementPage: React.FC = () => {
   const [pollOpts, setPollOpts] = useState<string[]>(['', '']);
   const [selectedEmpEmail, setSelectedEmpEmail] = useState('');
 
+  // Attendance Date and View Filter States (Not Absent / Present tracking)
+  const [attendanceDate, setAttendanceDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [attendanceViewMode, setAttendanceViewMode] = useState<'present' | 'absent' | 'analytics' | 'logs'>('present');
+  const [attendanceSearch, setAttendanceSearch] = useState('');
+  const [attendanceCompanyFilter, setAttendanceCompanyFilter] = useState('ALL');
+
+  // Management Users & Roles State
+  const [mgmtUsers, setMgmtUsers] = useState<any[]>([]);
+  const [editingUser, setEditingUser] = useState<any | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editRole, setEditRole] = useState<Role>('manager');
+  const [editDept, setEditDept] = useState('');
+  const [editPass, setEditPass] = useState('');
+  const [isSavingUser, setIsSavingUser] = useState(false);
+  const [userStatusMsg, setUserStatusMsg] = useState('');
+
+  // Add New Management User State
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserRole, setNewUserRole] = useState<Role>('manager');
+  const [newUserDept, setNewUserDept] = useState('');
+  const [newUserPass, setNewUserPass] = useState('');
+  const [isAddingUser, setIsAddingUser] = useState(false);
+
   const loadAllData = async () => {
-    const [emps, atts, foods, lvs, nots, pls, tks, clms, cmps, upd] = await Promise.all([
+    const [emps, atts, foods, lvs, nots, pls, tks, clms, cmps, upd, mUsers] = await Promise.all([
       api.getEmployees(),
       api.getAttendance(),
       api.getFoodCounts(),
@@ -97,6 +145,7 @@ export const ManagementPage: React.FC = () => {
       api.getClaims(),
       api.getCompanies(),
       api.getAppUpdate(),
+      api.getManagementUsers(),
     ]);
     setEmployees(emps);
     setAttendance(atts);
@@ -107,6 +156,7 @@ export const ManagementPage: React.FC = () => {
     setTickets(tks);
     setClaims(clms);
     if (upd) setAppUpdate(upd);
+    if (Array.isArray(mUsers)) setMgmtUsers(mUsers);
     if (Array.isArray(cmps) && cmps.length > 0) {
       setCompanies(cmps);
       if (!cmps.includes(empCompany)) {
@@ -167,27 +217,22 @@ export const ManagementPage: React.FC = () => {
       });
 
       if (res && res.success) {
-        setRole(loginRole);
-        sessionStorage.setItem('kworks_mgmt_role', loginRole);
+        const activeRole = (res.role || res.user?.role || loginRole) as Role;
+        setRole(activeRole);
+        sessionStorage.setItem('kworks_mgmt_role', activeRole);
         if (res.accessToken) {
           localStorage.setItem('kworks_access_token', res.accessToken);
         }
-        const allowed = ROLE_PERMISSIONS[loginRole] || ['onboarding'];
+        if (res.refreshToken) {
+          localStorage.setItem('kworks_refresh_token', res.refreshToken);
+        }
+        const allowed = ROLE_PERMISSIONS[activeRole] || ['onboarding'];
         setActiveTab(allowed[0] as any);
         setIsLoggingIn(false);
         return;
       }
 
-      // Fallback verification
-      const cred = SITE_CREDS[loginRole];
-      if (cred && loginEmail.trim().toLowerCase() === cred.email.toLowerCase() && loginPass === cred.pass) {
-        setRole(loginRole);
-        sessionStorage.setItem('kworks_mgmt_role', loginRole);
-        const allowed = ROLE_PERMISSIONS[loginRole] || ['onboarding'];
-        setActiveTab(allowed[0] as any);
-      } else {
-        setLoginError(res?.message || `Invalid credentials for ${ROLE_LABELS[loginRole]}. Please check your email and password.`);
-      }
+      setLoginError(res?.message || `Invalid credentials for ${ROLE_LABELS[loginRole]}. Please check your email and password.`);
     } catch {
       setLoginError('Authentication service unreachable. Please check your network connection.');
     } finally {
@@ -200,6 +245,99 @@ export const ManagementPage: React.FC = () => {
     sessionStorage.removeItem('kworks_mgmt_role');
     localStorage.removeItem('kworks_access_token');
     localStorage.removeItem('kworks_refresh_token');
+  };
+
+  const handleOpenEditUser = (u: any) => {
+    setEditingUser(u);
+    setEditName(u.name || '');
+    setEditEmail(u.email || '');
+    setEditRole((u.role as Role) || 'manager');
+    setEditDept(u.department || '');
+    setEditPass('');
+    setUserStatusMsg('');
+  };
+
+  const handleSaveEditUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    if (!editName.trim() || !editEmail.trim()) {
+      setUserStatusMsg('❌ Name and Email are required.');
+      return;
+    }
+    setIsSavingUser(true);
+    setUserStatusMsg('');
+
+    const payload: any = {
+      name: editName.trim(),
+      email: editEmail.trim().toLowerCase(),
+      role: editRole,
+      department: editDept.trim() || 'Management',
+    };
+    if (editPass.trim()) {
+      payload.password = editPass.trim();
+    }
+
+    const res = await api.updateManagementUser(editingUser.id, payload);
+    setIsSavingUser(false);
+    if (res && res.success) {
+      setUserStatusMsg(`✅ Account "${payload.name}" updated! Role set to ${ROLE_LABELS[editRole]}.`);
+      setEditingUser(null);
+      const updatedList = await api.getManagementUsers();
+      if (Array.isArray(updatedList)) setMgmtUsers(updatedList);
+      setTimeout(() => setUserStatusMsg(''), 6000);
+    } else {
+      setUserStatusMsg(`❌ Failed to update: ${res?.message || 'Unknown error'}`);
+    }
+  };
+
+  const handleCreateManagementUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUserName.trim() || !newUserEmail.trim() || !newUserPass.trim()) {
+      setUserStatusMsg('❌ Name, email, and initial password are required.');
+      return;
+    }
+    setIsAddingUser(true);
+    setUserStatusMsg('');
+
+    const payload = {
+      name: newUserName.trim(),
+      email: newUserEmail.trim().toLowerCase(),
+      password: newUserPass.trim(),
+      role: newUserRole,
+      department: newUserDept.trim() || 'Management',
+    };
+
+    const res = await api.addManagementUser(payload);
+    setIsAddingUser(false);
+    if (res && res.success) {
+      setUserStatusMsg(`✅ Account created for "${payload.name}" as ${ROLE_LABELS[newUserRole]}!`);
+      setNewUserName('');
+      setNewUserEmail('');
+      setNewUserPass('');
+      setNewUserDept('');
+      setShowAddUser(false);
+      const updatedList = await api.getManagementUsers();
+      if (Array.isArray(updatedList)) setMgmtUsers(updatedList);
+      setTimeout(() => setUserStatusMsg(''), 6000);
+    } else {
+      setUserStatusMsg(`❌ ${res?.message || 'Failed to create user'}`);
+    }
+  };
+
+  const handleDeleteManagementUser = async (userToDelete: any) => {
+    if (!window.confirm(`Are you sure you want to delete ${userToDelete.name} (${userToDelete.email})?`)) {
+      return;
+    }
+    const res = await api.deleteManagementUser(userToDelete.id);
+    if (res && res.success) {
+      setUserStatusMsg(`User "${userToDelete.name}" deleted.`);
+      const updatedList = await api.getManagementUsers();
+      if (Array.isArray(updatedList)) setMgmtUsers(updatedList);
+      setTimeout(() => setUserStatusMsg(''), 5000);
+    } else {
+      setUserStatusMsg(`❌ ${res?.message || 'Failed to delete user'}`);
+      setTimeout(() => setUserStatusMsg(''), 6000);
+    }
   };
 
   const handleAddCompany = async (e: React.FormEvent) => {
@@ -379,7 +517,7 @@ export const ManagementPage: React.FC = () => {
           <form onSubmit={handleLogin}>
             <label style={styles.fieldLabel}>SELECT ROLE</label>
             <div style={styles.roleChips}>
-              {(['manager', 'hr', 'admin', 'it', 'finance'] as Role[]).map((r) => (
+              {(['super_admin', 'admin', 'manager', 'hr', 'it', 'finance'] as Role[]).map((r) => (
                 <button
                   key={r}
                   type="button"
@@ -389,7 +527,7 @@ export const ManagementPage: React.FC = () => {
                     setLoginError('');
                   }}
                 >
-                  {r.toUpperCase()}
+                  {r.toUpperCase().replace('_', ' ')}
                 </button>
               ))}
             </div>
@@ -447,6 +585,7 @@ export const ManagementPage: React.FC = () => {
       {/* Top Dashboard Navigation Keys Bar (Role-Filtered) */}
       <div style={styles.keysBar}>
         {[
+          { id: 'users', label: 'ROLES & ACCESS', stat: `${mgmtUsers.length} active` },
           { id: 'onboarding', label: 'EMPLOYEE ONBOARDING', stat: `${employees.length} onboarded` },
           { id: 'attendance', label: 'ATTENDANCE', stat: `${attendance.length} logged` },
           { id: 'food', label: 'FOOD COUNT', stat: `${foodCounts.length} days` },
@@ -472,6 +611,275 @@ export const ManagementPage: React.FC = () => {
 
       {/* Main Panel Content Container (Classic White Card) */}
       <div style={styles.panelContainer}>
+        {/* TAB 0: MANAGEMENT ROLES & ACCESS CONTROL */}
+        {activeTab === 'users' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px', marginBottom: '20px' }}>
+              <div>
+                <h2 style={{ ...styles.panelTitle, textAlign: 'left', marginBottom: '4px' }}>
+                  Management Roles &amp; Access Control
+                </h2>
+                <p style={{ color: '#666', fontSize: '13px' }}>
+                  Assign role types, modify credentials, and control access permissions. Database credentials strictly supersede default passwords.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddUser(!showAddUser);
+                  setUserStatusMsg('');
+                }}
+                style={{
+                  backgroundColor: '#D7AB6A',
+                  color: '#2B1022',
+                  border: 'none',
+                  borderRadius: '10px',
+                  padding: '10px 18px',
+                  fontWeight: 800,
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(215,171,106,0.3)',
+                }}
+              >
+                {showAddUser ? '✕ Close Form' : '+ Add New Management User'}
+              </button>
+            </div>
+
+            {/* Status Alert Banner */}
+            {userStatusMsg && (
+              <div
+                style={{
+                  backgroundColor: userStatusMsg.startsWith('❌') ? 'rgba(224,80,80,0.1)' : 'rgba(78,186,111,0.12)',
+                  border: `1.5px solid ${userStatusMsg.startsWith('❌') ? '#E05050' : '#4EBA6F'}`,
+                  borderRadius: '10px',
+                  padding: '12px 16px',
+                  marginBottom: '20px',
+                  fontSize: '13.5px',
+                  fontWeight: 700,
+                  color: userStatusMsg.startsWith('❌') ? '#C0392B' : '#27AE60',
+                }}
+              >
+                {userStatusMsg}
+              </div>
+            )}
+
+            {/* Collapsible Add Management User Form */}
+            {showAddUser && (
+              <div style={{ ...styles.colCard, marginBottom: '24px', backgroundColor: '#FFFDF9', border: '2px solid #D7AB6A' }}>
+                <h3 style={{ ...styles.cardTitle, color: '#D7AB6A' }}>CREATE NEW MANAGEMENT ACCOUNT</h3>
+                <p style={{ color: '#777', fontSize: '12.5px', marginBottom: '14px' }}>
+                  Configure role type and initial credentials for a new management team member.
+                </p>
+
+                <form onSubmit={handleCreateManagementUser}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+                    <div>
+                      <label style={styles.fieldLabel}>FULL NAME *</label>
+                      <input
+                        style={styles.fieldInput}
+                        value={newUserName}
+                        onChange={(e) => setNewUserName(e.target.value)}
+                        placeholder="e.g. Rachel Green"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label style={styles.fieldLabel}>LOGIN EMAIL *</label>
+                      <input
+                        type="email"
+                        style={styles.fieldInput}
+                        value={newUserEmail}
+                        onChange={(e) => setNewUserEmail(e.target.value)}
+                        placeholder="e.g. rachel@kworks.com"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label style={styles.fieldLabel}>ASSIGN ROLE TYPE *</label>
+                      <select
+                        style={{ ...styles.fieldInput, height: '42px', cursor: 'pointer' }}
+                        value={newUserRole}
+                        onChange={(e) => setNewUserRole(e.target.value as Role)}
+                      >
+                        {(Object.keys(ROLE_LABELS) as Role[]).map((r) => (
+                          <option key={r} value={r}>
+                            {ROLE_LABELS[r]} — ({ROLE_DESCRIPTIONS[r]})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={styles.fieldLabel}>DEPARTMENT</label>
+                      <input
+                        style={styles.fieldInput}
+                        value={newUserDept}
+                        onChange={(e) => setNewUserDept(e.target.value)}
+                        placeholder="e.g. Human Resources, Operations"
+                      />
+                    </div>
+                    <div>
+                      <label style={styles.fieldLabel}>INITIAL PASSWORD *</label>
+                      <input
+                        type="password"
+                        style={styles.fieldInput}
+                        value={newUserPass}
+                        onChange={(e) => setNewUserPass(e.target.value)}
+                        placeholder="Set strong initial password..."
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '18px' }}>
+                    <button
+                      type="submit"
+                      disabled={isAddingUser}
+                      style={{ ...styles.btnPrimary, width: 'auto', padding: '10px 24px', marginTop: 0 }}
+                    >
+                      {isAddingUser ? '⏳ Creating Account...' : 'Create Account'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddUser(false)}
+                      style={{ ...styles.btnGhost, color: '#666', borderColor: '#ccc', padding: '10px 18px' }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* Management Users Directory Table */}
+            <div style={{ overflowX: 'auto', border: '1px solid #E5D4B8', borderRadius: '12px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13.5px', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#F7EFE2', borderBottom: '2px solid #D7AB6A', color: '#2B1022' }}>
+                    <th style={{ padding: '12px 16px', fontWeight: 800 }}>USER</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 800 }}>EMAIL</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 800 }}>ROLE TYPE</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 800 }}>DEPARTMENT</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 800 }}>PERMISSIONS SUMMARY</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 800, textAlign: 'right' }}>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mgmtUsers.map((u) => {
+                    const userRole = (u.role as Role) || 'manager';
+                    const roleColor = ROLE_COLORS[userRole] || { bg: '#F7EFE2', text: '#2B1022', border: '#D7AB6A' };
+                    return (
+                      <tr key={u.id} style={{ borderBottom: '1px solid #F0E6D8' }}>
+                        <td style={{ padding: '14px 16px', fontWeight: 700, color: '#2B1022' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div
+                              style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '50%',
+                                backgroundColor: roleColor.bg,
+                                color: roleColor.text,
+                                border: `1.5px solid ${roleColor.border}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontWeight: 800,
+                                fontSize: '12px',
+                              }}
+                            >
+                              {(u.name || 'U').charAt(0).toUpperCase()}
+                            </div>
+                            <span>{u.name}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '14px 16px', color: '#555' }}>{u.email}</td>
+                        <td style={{ padding: '14px 16px' }}>
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              backgroundColor: roleColor.bg,
+                              color: roleColor.text,
+                              border: `1px solid ${roleColor.border}`,
+                              fontWeight: 800,
+                              fontSize: '11.5px',
+                              letterSpacing: '0.4px',
+                            }}
+                          >
+                            {ROLE_LABELS[userRole] || userRole.toUpperCase()}
+                          </span>
+                        </td>
+                        <td style={{ padding: '14px 16px', color: '#666' }}>{u.department || 'General'}</td>
+                        <td style={{ padding: '14px 16px', color: '#777', fontSize: '12px', maxWidth: '280px' }}>
+                          {ROLE_DESCRIPTIONS[userRole] || 'Standard management access'}
+                        </td>
+                        <td style={{ padding: '14px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditUser(u)}
+                            style={{
+                              backgroundColor: 'rgba(215,171,106,0.15)',
+                              color: '#7A4F1D',
+                              border: '1px solid #D7AB6A',
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              fontWeight: 700,
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              marginRight: '8px',
+                            }}
+                          >
+                            ✏️ Edit Role / Pass
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteManagementUser(u)}
+                            style={{
+                              backgroundColor: 'transparent',
+                              color: '#E05050',
+                              border: '1px solid #E05050',
+                              padding: '6px 10px',
+                              borderRadius: '8px',
+                              fontWeight: 700,
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                            }}
+                            title="Delete User"
+                          >
+                            🗑️
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {mgmtUsers.length === 0 && (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: '#9C7B4E' }}>
+                        No management users found in database.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Role Capabilities Reference Guide */}
+            <div style={{ marginTop: '28px', backgroundColor: '#FDFBF7', border: '1px solid #E5D4B8', borderRadius: '12px', padding: '16px 20px' }}>
+              <h4 style={{ fontSize: '12.5px', fontWeight: 800, color: '#2B1022', marginBottom: '10px', letterSpacing: '0.6px' }}>
+                ROLE TYPE CAPABILITIES &amp; ACCESS MATRIX
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
+                {(Object.keys(ROLE_LABELS) as Role[]).map((r) => (
+                  <div key={r} style={{ borderLeft: `3px solid ${ROLE_COLORS[r].border}`, paddingLeft: '10px' }}>
+                    <div style={{ fontSize: '12.5px', fontWeight: 800, color: ROLE_COLORS[r].text }}>{ROLE_LABELS[r]}</div>
+                    <div style={{ fontSize: '11.5px', color: '#666', marginTop: '2px' }}>{ROLE_DESCRIPTIONS[r]}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* TAB 1: EMPLOYEE ONBOARDING & FACE REGISTRATION (2-COLUMN LAYOUT) */}
         {activeTab === 'onboarding' && (
           <div>
@@ -606,8 +1014,85 @@ export const ManagementPage: React.FC = () => {
 
         {/* TAB 2: ATTENDANCE TRACKING */}
         {activeTab === 'attendance' && (() => {
-          // Calculate Common Stats
-          // Group by Date for daily check-ins chart
+          // All distinct dates in attendance records (most recent first)
+          const allDates = Array.from(new Set(attendance.map((r) => r.date).filter(Boolean)))
+            .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+          const todayStr = new Date().toISOString().split('T')[0];
+          const selectedDate = attendanceDate || (allDates[0] || todayStr);
+
+          // Records matching selectedDate
+          const dateRecords = attendance.filter((r) => r.date === selectedDate);
+
+          // Map of checkins by email (lowercased)
+          const checkInMap = new Map<string, any>();
+          dateRecords.forEach((r) => {
+            const emailKey = (r.user || '').trim().toLowerCase();
+            if (emailKey && !checkInMap.has(emailKey)) {
+              checkInMap.set(emailKey, r);
+            }
+          });
+
+          // Present employees ("Not Absent" list)
+          const presentEmployees: any[] = [];
+          employees.forEach((emp) => {
+            const emailKey = (emp.email || '').trim().toLowerCase();
+            if (checkInMap.has(emailKey)) {
+              presentEmployees.push({
+                ...emp,
+                checkIn: checkInMap.get(emailKey),
+                isPresent: true,
+              });
+            }
+          });
+
+          // Also include any attendance record whose user email might not be in employees list
+          dateRecords.forEach((rec) => {
+            const recEmail = (rec.user || '').trim().toLowerCase();
+            if (recEmail && !presentEmployees.some((e) => (e.email || '').trim().toLowerCase() === recEmail)) {
+              presentEmployees.push({
+                id: rec.id || `ext_${recEmail}`,
+                name: rec.name || rec.user,
+                email: rec.user,
+                company: 'kanagamtech',
+                role: 'Employee',
+                department: 'General',
+                checkIn: rec,
+                isPresent: true,
+              });
+            }
+          });
+
+          // Absent employees (onboarded employees who have NOT checked in on selectedDate)
+          const absentEmployees: any[] = employees
+            .filter((emp) => !checkInMap.has((emp.email || '').trim().toLowerCase()))
+            .map((emp) => ({
+              ...emp,
+              isPresent: false,
+            }));
+
+          // Filter by search and company
+          const filterFn = (item: any) => {
+            if (attendanceCompanyFilter !== 'ALL') {
+              if ((item.company || '').toLowerCase() !== attendanceCompanyFilter.toLowerCase()) {
+                return false;
+              }
+            }
+            const q = attendanceSearch.trim().toLowerCase();
+            if (!q) return true;
+            return (
+              (item.name || '').toLowerCase().includes(q) ||
+              (item.email || '').toLowerCase().includes(q) ||
+              (item.department || '').toLowerCase().includes(q) ||
+              (item.role || '').toLowerCase().includes(q) ||
+              (item.company || '').toLowerCase().includes(q) ||
+              (item.checkIn?.location || '').toLowerCase().includes(q)
+            );
+          };
+
+          const filteredPresent = presentEmployees.filter(filterFn);
+          const filteredAbsent = absentEmployees.filter(filterFn);
+
+          // Calculate Common Stats for charts
           const dailyMap: Record<string, number> = {};
           attendance.forEach((r) => {
             const dateStr = r.date || 'Unknown';
@@ -618,31 +1103,84 @@ export const ManagementPage: React.FC = () => {
             .slice(-5);
           const maxDailyCount = Math.max(...Object.values(dailyMap), 1);
 
-          // Group by Location for location breakdown chart
           const locMap: Record<string, number> = {};
           attendance.forEach((r) => {
             const locStr = r.location || 'Location unknown';
             locMap[locStr] = (locMap[locStr] || 0) + 1;
           });
 
-          // Individual stats calculation
           const employeeRecs = selectedEmpEmail
             ? attendance.filter((r) => r.user?.toLowerCase() === selectedEmpEmail.toLowerCase())
             : [];
 
+          // CSV Export for Not Absent
+          const handleExportNotAbsent = () => {
+            const headers = ['EMP ID', 'Name', 'Email', 'Company', 'Department', 'Role', 'Date', 'Time', 'Location', 'GPS'];
+            const rows = filteredPresent.map((p) => [
+              p.id || '',
+              `"${(p.name || '').replace(/"/g, '""')}"`,
+              p.email || '',
+              p.company || '',
+              p.department || '',
+              p.role || '',
+              p.checkIn?.date || selectedDate,
+              p.checkIn?.time || '',
+              `"${(p.checkIn?.location || '').replace(/"/g, '""')}"`,
+              p.checkIn?.gpsFormatted || '',
+            ]);
+            const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `kworks_not_absent_${selectedDate}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+          };
+
           return (
             <div>
-              <h2 style={styles.panelTitle}>Attendance — Common &amp; Individual Analytics</h2>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '8px' }}>
+                <h2 style={styles.panelTitle}>Attendance — Common &amp; Individual Analytics</h2>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <button
+                    onClick={handleExportNotAbsent}
+                    style={{
+                      backgroundColor: '#2E8B57',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '8px 14px',
+                      fontSize: '12px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    📥 Export Not Absent List (CSV)
+                  </button>
+                </div>
+              </div>
 
               {/* Analytics Header Chips */}
               <div style={styles.chipsRow}>
                 <div style={styles.chip}>
-                  <div style={styles.chipValue}>{attendance.length}</div>
-                  <div style={styles.chipLabel}>Total Marks</div>
+                  <div style={{ ...styles.chipValue, color: '#2E8B57' }}>{presentEmployees.length}</div>
+                  <div style={styles.chipLabel}>🟢 Not Absent (Present)</div>
+                </div>
+                <div style={styles.chip}>
+                  <div style={{ ...styles.chipValue, color: '#E05050' }}>{absentEmployees.length}</div>
+                  <div style={styles.chipLabel}>🔴 Absent Today</div>
                 </div>
                 <div style={styles.chip}>
                   <div style={styles.chipValue}>{employees.length}</div>
-                  <div style={styles.chipLabel}>Employees Onboarded</div>
+                  <div style={styles.chipLabel}>Total Onboarded</div>
+                </div>
+                <div style={styles.chip}>
+                  <div style={styles.chipValue}>{attendance.length}</div>
+                  <div style={styles.chipLabel}>Total Logs</div>
                 </div>
                 <div style={styles.chip}>
                   <div style={styles.chipValue}>{Object.keys(dailyMap).length}</div>
@@ -650,201 +1188,648 @@ export const ManagementPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Two Column Layout: Visual Charts vs Individual Tracker */}
-              <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginTop: '20px' }}>
-                
-                {/* COLUMN 1: COMMON ANALYTICS (VISUAL CHARTS) */}
-                <div style={{ ...styles.colCard, flex: '1 1 500px' }}>
-                  <h3 style={styles.cardTitle}>📊 COMPANY-WIDE ATTENDANCE CHARTS</h3>
-                  
-                  {/* Daily Trend Chart (CSS Bar Chart) */}
-                  <div style={{ marginBottom: '24px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 800, color: '#9C7B4E', marginBottom: '12px' }}>DAILY CHECK-INS (TREND)</div>
-                    {last5Days.length === 0 ? (
-                      <p style={{ ...styles.emptyText, fontSize: '11px' }}>No records to graph yet.</p>
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', height: '140px', backgroundColor: 'rgba(75,29,63,0.03)', border: '1px solid #E5D4B8', borderRadius: '10px', padding: '16px 8px 10px 8px' }}>
-                        {last5Days.map((day) => {
-                          const count = dailyMap[day];
-                          const pct = (count / maxDailyCount) * 100;
-                          return (
-                            <div key={day} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-                              <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#2B1022', marginBottom: '4px' }}>{count}</span>
-                              <div style={{ width: '28px', height: `${Math.max(pct, 8)}%`, backgroundColor: '#D7AB6A', borderRadius: '4px 4px 0 0', minHeight: '8px', transition: 'height 0.3s' }} />
-                              <span style={{ fontSize: '9px', fontWeight: 800, color: '#9C7B4E', marginTop: '8px', textAlign: 'center', width: '60px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{day}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Location Analysis Progress Bars */}
-                  <div>
-                    <div style={{ fontSize: '12px', fontWeight: 800, color: '#9C7B4E', marginBottom: '10px' }}>LOCATION REPRESENTATION</div>
-                    {Object.keys(locMap).length === 0 ? (
-                      <p style={{ ...styles.emptyText, fontSize: '11px' }}>No location data logged yet.</p>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {Object.keys(locMap).map((loc) => {
-                          const count = locMap[loc];
-                          const pct = (count / attendance.length) * 100;
-                          return (
-                            <div key={loc} style={{ fontSize: '12px' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#2B1022', fontWeight: 700, marginBottom: '2px' }}>
-                                <span style={{ fontSize: '11.5px' }}>📍 {loc}</span>
-                                <span>{count} ({Math.round(pct)}%)</span>
-                              </div>
-                              <div style={{ width: '100%', height: '8px', backgroundColor: 'rgba(75,29,63,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
-                                <div style={{ width: `${pct}%`, height: '100%', backgroundColor: '#4B1D3F', borderRadius: '4px' }} />
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+              {/* CONTROLS BAR: Date Selector, Company Filter, Search */}
+              <div
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  border: '1.5px solid #D7AB6A',
+                  borderRadius: '12px',
+                  padding: '14px 18px',
+                  marginTop: '18px',
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '14px',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                {/* Date Picker */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 800, color: '#2B1022' }}>📅 DATE:</span>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setAttendanceDate(e.target.value)}
+                    style={{
+                      ...styles.fieldInput,
+                      width: 'auto',
+                      padding: '6px 10px',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setAttendanceDate(todayStr)}
+                    style={{
+                      backgroundColor: selectedDate === todayStr ? '#D7AB6A' : 'rgba(215,171,106,0.2)',
+                      color: selectedDate === todayStr ? '#FFFFFF' : '#2B1022',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '6px 12px',
+                      fontSize: '11.5px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Today
+                  </button>
+                  {allDates.length > 0 && (
+                    <select
+                      value={selectedDate}
+                      onChange={(e) => setAttendanceDate(e.target.value)}
+                      style={{
+                        ...styles.fieldInput,
+                        width: 'auto',
+                        padding: '6px 10px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <option value="">-- Jump to Active Date --</option>
+                      {allDates.map((d) => (
+                        <option key={d} value={d}>
+                          {d} ({attendance.filter((r) => r.date === d).length} check-ins)
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
-                {/* COLUMN 2: INDIVIDUAL SEARCH & TRACKER */}
-                <div style={{ ...styles.colCard, flex: '1 1 450px' }}>
-                  <h3 style={styles.cardTitle}>👤 INDIVIDUAL EMPLOYEE ATTENDANCE CARD</h3>
-                  
-                  <label style={styles.fieldLabel}>SELECT EMPLOYEE</label>
+                {/* Company Filter & Search */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                   <select
-                    style={{ ...styles.fieldInput, cursor: 'pointer' }}
-                    value={selectedEmpEmail}
-                    onChange={(e) => setSelectedEmpEmail(e.target.value)}
+                    value={attendanceCompanyFilter}
+                    onChange={(e) => setAttendanceCompanyFilter(e.target.value)}
+                    style={{
+                      ...styles.fieldInput,
+                      width: 'auto',
+                      padding: '6px 10px',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                    }}
                   >
-                    <option value="">-- Choose Employee --</option>
-                    {employees.map((emp) => (
-                      <option key={emp.id} value={emp.email}>
-                        {emp.name} ({emp.email})
+                    <option value="ALL">🏢 All Companies</option>
+                    {companies.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
                       </option>
                     ))}
                   </select>
 
-                  {selectedEmpEmail ? (() => {
-                    const emp = employees.find((e) => e.email?.toLowerCase() === selectedEmpEmail.toLowerCase());
-                    return (
-                      <div style={{ marginTop: '20px', border: '1px solid #D7AB6A', borderRadius: '12px', padding: '16px', backgroundColor: '#FFFFFF' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-                          <div style={{ ...styles.thumbWrap, width: '48px', height: '48px', borderRadius: '24px' }}>
-                            {emp?.photo ? (
-                              <img src={emp.photo} alt="" style={styles.thumbImg} />
-                            ) : (
-                              <div style={{ ...styles.dot, width: '14px', height: '14px', borderRadius: '7px' }} />
-                            )}
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '15px', fontWeight: 800, color: '#2B1022' }}>{emp?.name || 'Unknown Employee'}</div>
-                            <div style={{ fontSize: '12px', color: '#9C7B4E' }}>{emp?.role} &middot; {emp?.department}</div>
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '10px', marginBottom: '14px' }}>
-                          <div style={{ flex: 1, backgroundColor: '#F7EFE2', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
-                            <div style={{ fontSize: '16px', fontWeight: 800, color: '#2B1022' }}>{employeeRecs.length}</div>
-                            <div style={{ fontSize: '10px', color: '#9C7B4E', marginTop: '2px' }}>Total Logs</div>
-                          </div>
-                          <div style={{ flex: 1, backgroundColor: '#F7EFE2', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
-                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#2E8B57' }}>
-                              {employeeRecs.length > 0 ? 'Active' : 'No Logs'}
-                            </div>
-                            <div style={{ fontSize: '10px', color: '#9C7B4E', marginTop: '2px' }}>Status</div>
-                          </div>
-                        </div>
-
-                        <div style={{ fontSize: '12px', fontWeight: '800', color: '#9C7B4E', marginBottom: '6px' }}>INDIVIDUAL LOGS</div>
-                        {employeeRecs.length === 0 ? (
-                          <p style={{ color: '#9C7B4E', fontSize: '12px', fontStyle: 'italic' }}>No check-in logs registered for this employee yet.</p>
-                        ) : (
-                          <div style={{ maxHeight: '140px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            {employeeRecs.map((rec, idx) => (
-                              <div key={idx} style={{ backgroundColor: 'rgba(75,29,63,0.03)', padding: '8px 10px', borderRadius: '6px', fontSize: '11.5px', border: '1px solid rgba(215,171,106,0.2)' }}>
-                                <strong>{rec.date}</strong> &middot; {rec.time} <br />
-                                <span style={{ color: '#9C7B4E' }}>📍 {rec.location || 'Location unknown'}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })() : (
-                    <p style={{ ...styles.emptyText, textAlign: 'center', marginTop: '24px' }}>Select an employee from the dropdown list to see their detailed attendance history and card profile.</p>
-                  )}
-                </div>
-
-              </div>
-
-              {/* LATEST RECORD LOGS SECTION */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '28px 0 12px 0' }}>
-                <div style={styles.listTitle}>LATEST ATTENDANCE LOGS</div>
-                {attendance.length > 0 && (
-                  <button
+                  <input
+                    type="text"
+                    placeholder="🔍 Search name, email, dept, location..."
+                    value={attendanceSearch}
+                    onChange={(e) => setAttendanceSearch(e.target.value)}
                     style={{
-                      backgroundColor: 'rgba(224, 80, 80, 0.15)',
-                      color: '#E05050',
-                      border: '1.5px solid #E05050',
-                      borderRadius: '6px',
+                      ...styles.fieldInput,
+                      width: '240px',
                       padding: '6px 12px',
-                      fontSize: '11px',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      letterSpacing: '0.5px',
-                      transition: 'all 0.2s',
+                      fontSize: '12px',
                     }}
-                    onClick={handleClearAllAttendance}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.backgroundColor = '#E05050';
-                      e.currentTarget.style.color = '#FFFFFF';
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.backgroundColor = 'rgba(224, 80, 80, 0.15)';
-                      e.currentTarget.style.color = '#E05050';
-                    }}
-                  >
-                    CLEAR ALL RECORDS
-                  </button>
-                )}
+                  />
+                </div>
               </div>
 
-              {attendance.length === 0 ? (
-                <p style={styles.emptyText}>No attendance marked yet.</p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {attendance.map((r, i) => {
-                    const mapsUrl = r.mapsUrl || (r.latitude && r.longitude ? `https://www.google.com/maps?q=${r.latitude},${r.longitude}` : null);
-                    return (
-                      <div key={r.id || i} style={styles.listRow}>
-                        <div style={styles.dot} />
-                        <div style={{ flex: 1 }}>
-                          <div style={styles.empName}>{r.name || r.user} &middot; {r.time}</div>
-                          <div style={styles.empSub}>
-                            📍 {r.location || 'Location unknown'} &middot; {r.date}
-                            {r.gpsFormatted && <span style={{ color: '#9C7B4E', marginLeft: '6px', fontWeight: 700 }}>({r.gpsFormatted})</span>}
+              {/* NAVIGATION TABS: Present (Not Absent) vs Absent vs Charts vs All Logs */}
+              <div style={{ display: 'flex', gap: '10px', marginTop: '16px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setAttendanceViewMode('present')}
+                  style={{
+                    backgroundColor: attendanceViewMode === 'present' ? '#2E8B57' : 'rgba(46,139,87,0.1)',
+                    color: attendanceViewMode === 'present' ? '#FFFFFF' : '#2E8B57',
+                    border: '1.5px solid #2E8B57',
+                    borderRadius: '8px',
+                    padding: '9px 18px',
+                    fontSize: '12.5px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: attendanceViewMode === 'present' ? '0 2px 8px rgba(46,139,87,0.3)' : 'none',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <span>🟢</span>
+                  <span>NOT ABSENT / PRESENT ({filteredPresent.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAttendanceViewMode('absent')}
+                  style={{
+                    backgroundColor: attendanceViewMode === 'absent' ? '#E05050' : 'rgba(224,80,80,0.1)',
+                    color: attendanceViewMode === 'absent' ? '#FFFFFF' : '#E05050',
+                    border: '1.5px solid #E05050',
+                    borderRadius: '8px',
+                    padding: '9px 18px',
+                    fontSize: '12.5px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: attendanceViewMode === 'absent' ? '0 2px 8px rgba(224,80,80,0.3)' : 'none',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <span>🔴</span>
+                  <span>ABSENT ({filteredAbsent.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAttendanceViewMode('analytics')}
+                  style={{
+                    backgroundColor: attendanceViewMode === 'analytics' ? '#4B1D3F' : 'rgba(75,29,63,0.08)',
+                    color: attendanceViewMode === 'analytics' ? '#FFFFFF' : '#4B1D3F',
+                    border: '1.5px solid #4B1D3F',
+                    borderRadius: '8px',
+                    padding: '9px 18px',
+                    fontSize: '12.5px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <span>📊</span>
+                  <span>CHARTS &amp; INDIVIDUAL CARD</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAttendanceViewMode('logs')}
+                  style={{
+                    backgroundColor: attendanceViewMode === 'logs' ? '#D7AB6A' : 'rgba(215,171,106,0.15)',
+                    color: attendanceViewMode === 'logs' ? '#2B1022' : '#9C7B4E',
+                    border: '1.5px solid #D7AB6A',
+                    borderRadius: '8px',
+                    padding: '9px 18px',
+                    fontSize: '12.5px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <span>📋</span>
+                  <span>ALL CHECK-IN LOGS ({attendance.length})</span>
+                </button>
+              </div>
+
+              {/* ────────────────────────────────────────────────────────── */}
+              {/* VIEW 1: NOT ABSENT (PRESENT) LIST (DEFAULT)               */}
+              {/* ────────────────────────────────────────────────────────── */}
+              {attendanceViewMode === 'present' && (
+                <div style={{ marginTop: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <div style={{ fontSize: '15px', fontWeight: 800, color: '#2E8B57' }}>
+                      ✅ NOT ABSENT EMPLOYEES — {filteredPresent.length} PRESENT ON {selectedDate}
+                    </div>
+                    <span style={{ fontSize: '12px', color: '#9C7B4E', fontWeight: 600 }}>
+                      Attendance Rate: {employees.length > 0 ? Math.round((presentEmployees.length / employees.length) * 100) : 0}%
+                    </span>
+                  </div>
+
+                  {filteredPresent.length === 0 ? (
+                    <div style={{ ...styles.colCard, textAlign: 'center', padding: '36px' }}>
+                      <p style={{ fontSize: '15px', fontWeight: 700, color: '#9C7B4E', margin: 0 }}>
+                        No employees marked attendance for {selectedDate}.
+                      </p>
+                      <p style={{ fontSize: '12px', color: '#999', marginTop: '6px' }}>
+                        Try picking a different date or clearing your search filter.
+                      </p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {filteredPresent.map((emp, idx) => {
+                        const rec = emp.checkIn || {};
+                        const mapsUrl = rec.mapsUrl || (rec.latitude && rec.longitude ? `https://www.google.com/maps?q=${rec.latitude},${rec.longitude}` : null);
+                        const initials = (emp.name || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
+
+                        return (
+                          <div
+                            key={emp.id || idx}
+                            style={{
+                              ...styles.listRow,
+                              borderLeft: '5px solid #2E8B57',
+                              padding: '12px 16px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              flexWrap: 'wrap',
+                              gap: '12px',
+                            }}
+                          >
+                            {/* Employee Info */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: '220px' }}>
+                              <div
+                                style={{
+                                  ...styles.thumbWrap,
+                                  width: '42px',
+                                  height: '42px',
+                                  borderRadius: '21px',
+                                  border: '2px solid #2E8B57',
+                                }}
+                              >
+                                {emp.photo ? (
+                                  <img src={emp.photo} alt="" style={styles.thumbImg} />
+                                ) : (
+                                  <div style={{ fontSize: '13px', fontWeight: 800, color: '#D7AB6A' }}>{initials}</div>
+                                )}
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '14.5px', fontWeight: 800, color: '#2B1022' }}>
+                                  {emp.name}
+                                </div>
+                                <div style={{ fontSize: '11.5px', color: '#9C7B4E' }}>
+                                  {emp.email} {emp.id ? `• ${emp.id}` : ''}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Organization Badges */}
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                              <span
+                                style={{
+                                  fontSize: '11px',
+                                  fontWeight: 800,
+                                  backgroundColor: 'rgba(75,29,63,0.08)',
+                                  color: '#4B1D3F',
+                                  padding: '3px 8px',
+                                  borderRadius: '4px',
+                                }}
+                              >
+                                🏢 {emp.company || 'kanagamtech'}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  backgroundColor: '#F7EFE2',
+                                  color: '#9C7B4E',
+                                  padding: '3px 8px',
+                                  borderRadius: '4px',
+                                }}
+                              >
+                                {emp.department || 'General'}
+                              </span>
+                            </div>
+
+                            {/* Check-In Details */}
+                            <div style={{ minWidth: '200px', flex: '1 1 200px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span
+                                  style={{
+                                    fontSize: '12px',
+                                    fontWeight: 800,
+                                    backgroundColor: 'rgba(46,139,87,0.15)',
+                                    color: '#2E8B57',
+                                    padding: '2px 8px',
+                                    borderRadius: '4px',
+                                  }}
+                                >
+                                  ⏰ {rec.time || 'Checked In'}
+                                </span>
+                                <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#2E8B57' }}>
+                                  ✓ NOT ABSENT
+                                </span>
+                              </div>
+                              <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
+                                📍 {rec.location || 'Location verified'}
+                                {rec.gpsFormatted && <span style={{ color: '#9C7B4E', marginLeft: '4px' }}>({rec.gpsFormatted})</span>}
+                              </div>
+                            </div>
+
+                            {/* Map Action Button */}
                             {mapsUrl && (
                               <a
                                 href={mapsUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                style={{ marginLeft: '8px', color: '#D7AB6A', fontWeight: 800, textDecoration: 'underline', fontSize: '11.5px' }}
+                                style={{
+                                  backgroundColor: '#F7EFE2',
+                                  color: '#2B1022',
+                                  border: '1px solid #D7AB6A',
+                                  borderRadius: '6px',
+                                  padding: '6px 10px',
+                                  fontSize: '11px',
+                                  fontWeight: 800,
+                                  textDecoration: 'none',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                }}
                               >
-                                🗺️ View GPS on Map
+                                🗺️ View GPS
                               </a>
                             )}
                           </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ────────────────────────────────────────────────────────── */}
+              {/* VIEW 2: ABSENT LIST                                       */}
+              {/* ────────────────────────────────────────────────────────── */}
+              {attendanceViewMode === 'absent' && (
+                <div style={{ marginTop: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <div style={{ fontSize: '15px', fontWeight: 800, color: '#E05050' }}>
+                      ❌ ABSENT EMPLOYEES — {filteredAbsent.length} NOT MARKED ON {selectedDate}
+                    </div>
+                  </div>
+
+                  {filteredAbsent.length === 0 ? (
+                    <div style={{ ...styles.colCard, textAlign: 'center', padding: '36px' }}>
+                      <p style={{ fontSize: '15px', fontWeight: 700, color: '#2E8B57', margin: 0 }}>
+                        🎉 Perfect Attendance! Zero absent employees on {selectedDate}.
+                      </p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {filteredAbsent.map((emp, idx) => {
+                        const initials = (emp.name || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
+
+                        return (
+                          <div
+                            key={emp.id || idx}
+                            style={{
+                              ...styles.listRow,
+                              borderLeft: '5px solid #E05050',
+                              padding: '10px 16px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              flexWrap: 'wrap',
+                              gap: '10px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <div
+                                style={{
+                                  ...styles.thumbWrap,
+                                  width: '38px',
+                                  height: '38px',
+                                  borderRadius: '19px',
+                                  border: '1.5px solid #E05050',
+                                }}
+                              >
+                                {emp.photo ? (
+                                  <img src={emp.photo} alt="" style={styles.thumbImg} />
+                                ) : (
+                                  <div style={{ fontSize: '12px', fontWeight: 800, color: '#E05050' }}>{initials}</div>
+                                )}
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '14px', fontWeight: 800, color: '#2B1022' }}>{emp.name}</div>
+                                <div style={{ fontSize: '11px', color: '#9C7B4E' }}>{emp.email} &middot; {emp.id}</div>
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 700, backgroundColor: 'rgba(75,29,63,0.06)', padding: '3px 8px', borderRadius: '4px' }}>
+                                🏢 {emp.company || 'kanagamtech'}
+                              </span>
+                              <span style={{ fontSize: '11px', fontWeight: 700, backgroundColor: '#F7EFE2', padding: '3px 8px', borderRadius: '4px' }}>
+                                {emp.department || 'General'}
+                              </span>
+                            </div>
+
+                            <div>
+                              <span
+                                style={{
+                                  fontSize: '11.5px',
+                                  fontWeight: 800,
+                                  backgroundColor: 'rgba(224,80,80,0.15)',
+                                  color: '#E05050',
+                                  padding: '4px 10px',
+                                  borderRadius: '6px',
+                                }}
+                              >
+                                ❌ ABSENT (NOT MARKED)
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ────────────────────────────────────────────────────────── */}
+              {/* VIEW 3: VISUAL CHARTS & INDIVIDUAL ANALYTICS               */}
+              {/* ────────────────────────────────────────────────────────── */}
+              {attendanceViewMode === 'analytics' && (
+                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginTop: '20px' }}>
+                  {/* Daily Trend & Location Breakdown */}
+                  <div style={{ ...styles.colCard, flex: '1 1 500px' }}>
+                    <h3 style={styles.cardTitle}>📊 COMPANY-WIDE ATTENDANCE CHARTS</h3>
+                    
+                    <div style={{ marginBottom: '24px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 800, color: '#9C7B4E', marginBottom: '12px' }}>DAILY CHECK-INS (TREND)</div>
+                      {last5Days.length === 0 ? (
+                        <p style={{ ...styles.emptyText, fontSize: '11px' }}>No records to graph yet.</p>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', height: '140px', backgroundColor: 'rgba(75,29,63,0.03)', border: '1px solid #E5D4B8', borderRadius: '10px', padding: '16px 8px 10px 8px' }}>
+                          {last5Days.map((day) => {
+                            const count = dailyMap[day];
+                            const pct = (count / maxDailyCount) * 100;
+                            return (
+                              <div key={day} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+                                <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#2B1022', marginBottom: '4px' }}>{count}</span>
+                                <div style={{ width: '28px', height: `${Math.max(pct, 8)}%`, backgroundColor: '#D7AB6A', borderRadius: '4px 4px 0 0', minHeight: '8px', transition: 'height 0.3s' }} />
+                                <span style={{ fontSize: '9px', fontWeight: 800, color: '#9C7B4E', marginTop: '8px', textAlign: 'center', width: '60px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{day}</span>
+                              </div>
+                            );
+                          })}
                         </div>
-                        <button
-                          style={styles.delBtn}
-                          onClick={() => handleDeleteAttendance(r.id || `att_${i}`)}
-                          title="Delete Record"
-                        >
-                          &times;
-                        </button>
-                      </div>
-                    );
-                  })}
+                      )}
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '12px', fontWeight: 800, color: '#9C7B4E', marginBottom: '10px' }}>LOCATION REPRESENTATION</div>
+                      {Object.keys(locMap).length === 0 ? (
+                        <p style={{ ...styles.emptyText, fontSize: '11px' }}>No location data logged yet.</p>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          {Object.keys(locMap).map((loc) => {
+                            const count = locMap[loc];
+                            const pct = (count / (attendance.length || 1)) * 100;
+                            return (
+                              <div key={loc} style={{ fontSize: '12px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#2B1022', fontWeight: 700, marginBottom: '2px' }}>
+                                  <span style={{ fontSize: '11.5px' }}>📍 {loc}</span>
+                                  <span>{count} ({Math.round(pct)}%)</span>
+                                </div>
+                                <div style={{ width: '100%', height: '8px', backgroundColor: 'rgba(75,29,63,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
+                                  <div style={{ width: `${pct}%`, height: '100%', backgroundColor: '#4B1D3F', borderRadius: '4px' }} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Individual Tracker */}
+                  <div style={{ ...styles.colCard, flex: '1 1 450px' }}>
+                    <h3 style={styles.cardTitle}>👤 INDIVIDUAL EMPLOYEE ATTENDANCE CARD</h3>
+                    
+                    <label style={styles.fieldLabel}>SELECT EMPLOYEE</label>
+                    <select
+                      style={{ ...styles.fieldInput, cursor: 'pointer' }}
+                      value={selectedEmpEmail}
+                      onChange={(e) => setSelectedEmpEmail(e.target.value)}
+                    >
+                      <option value="">-- Choose Employee --</option>
+                      {employees.map((emp) => (
+                        <option key={emp.id} value={emp.email}>
+                          {emp.name} ({emp.email})
+                        </option>
+                      ))}
+                    </select>
+
+                    {selectedEmpEmail ? (() => {
+                      const emp = employees.find((e) => e.email?.toLowerCase() === selectedEmpEmail.toLowerCase());
+                      return (
+                        <div style={{ marginTop: '20px', border: '1px solid #D7AB6A', borderRadius: '12px', padding: '16px', backgroundColor: '#FFFFFF' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+                            <div style={{ ...styles.thumbWrap, width: '48px', height: '48px', borderRadius: '24px' }}>
+                              {emp?.photo ? (
+                                <img src={emp.photo} alt="" style={styles.thumbImg} />
+                              ) : (
+                                <div style={{ ...styles.dot, width: '14px', height: '14px', borderRadius: '7px' }} />
+                              )}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '15px', fontWeight: 800, color: '#2B1022' }}>{emp?.name || 'Unknown Employee'}</div>
+                              <div style={{ fontSize: '12px', color: '#9C7B4E' }}>{emp?.role} &middot; {emp?.department}</div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '10px', marginBottom: '14px' }}>
+                            <div style={{ flex: 1, backgroundColor: '#F7EFE2', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
+                              <div style={{ fontSize: '16px', fontWeight: 800, color: '#2B1022' }}>{employeeRecs.length}</div>
+                              <div style={{ fontSize: '10px', color: '#9C7B4E', marginTop: '2px' }}>Total Logs</div>
+                            </div>
+                            <div style={{ flex: 1, backgroundColor: '#F7EFE2', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
+                              <div style={{ fontSize: '14px', fontWeight: 800, color: '#2E8B57' }}>
+                                {employeeRecs.length > 0 ? 'Active' : 'No Logs'}
+                              </div>
+                              <div style={{ fontSize: '10px', color: '#9C7B4E', marginTop: '2px' }}>Status</div>
+                            </div>
+                          </div>
+
+                          <div style={{ fontSize: '12px', fontWeight: '800', color: '#9C7B4E', marginBottom: '6px' }}>INDIVIDUAL LOGS</div>
+                          {employeeRecs.length === 0 ? (
+                            <p style={{ color: '#9C7B4E', fontSize: '12px', fontStyle: 'italic' }}>No check-in logs registered for this employee yet.</p>
+                          ) : (
+                            <div style={{ maxHeight: '140px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              {employeeRecs.map((rec, idx) => (
+                                <div key={idx} style={{ backgroundColor: 'rgba(75,29,63,0.03)', padding: '8px 10px', borderRadius: '6px', fontSize: '11.5px', border: '1px solid rgba(215,171,106,0.2)' }}>
+                                  <strong>{rec.date}</strong> &middot; {rec.time} <br />
+                                  <span style={{ color: '#9C7B4E' }}>📍 {rec.location || 'Location unknown'}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })() : (
+                      <p style={{ ...styles.emptyText, textAlign: 'center', marginTop: '24px' }}>Select an employee from the dropdown list to see their detailed attendance history and card profile.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ────────────────────────────────────────────────────────── */}
+              {/* VIEW 4: RAW CHECK-IN LOGS                                 */}
+              {/* ────────────────────────────────────────────────────────── */}
+              {attendanceViewMode === 'logs' && (
+                <div style={{ marginTop: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '14px 0 12px 0' }}>
+                    <div style={styles.listTitle}>RAW CHECK-IN ATTENDANCE RECORDS</div>
+                    {attendance.length > 0 && (
+                      <button
+                        style={{
+                          backgroundColor: 'rgba(224, 80, 80, 0.15)',
+                          color: '#E05050',
+                          border: '1.5px solid #E05050',
+                          borderRadius: '6px',
+                          padding: '6px 12px',
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          letterSpacing: '0.5px',
+                          transition: 'all 0.2s',
+                        }}
+                        onClick={handleClearAllAttendance}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.backgroundColor = '#E05050';
+                          e.currentTarget.style.color = '#FFFFFF';
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(224, 80, 80, 0.15)';
+                          e.currentTarget.style.color = '#E05050';
+                        }}
+                      >
+                        CLEAR ALL RECORDS
+                      </button>
+                    )}
+                  </div>
+
+                  {attendance.length === 0 ? (
+                    <p style={styles.emptyText}>No attendance marked yet.</p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {attendance.map((r, i) => {
+                        const mapsUrl = r.mapsUrl || (r.latitude && r.longitude ? `https://www.google.com/maps?q=${r.latitude},${r.longitude}` : null);
+                        return (
+                          <div key={r.id || i} style={styles.listRow}>
+                            <div style={styles.dot} />
+                            <div style={{ flex: 1 }}>
+                              <div style={styles.empName}>{r.name || r.user} &middot; {r.time}</div>
+                              <div style={styles.empSub}>
+                                📍 {r.location || 'Location unknown'} &middot; {r.date}
+                                {r.gpsFormatted && <span style={{ color: '#9C7B4E', marginLeft: '6px', fontWeight: 700 }}>({r.gpsFormatted})</span>}
+                                {mapsUrl && (
+                                  <a
+                                    href={mapsUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    style={{ marginLeft: '8px', color: '#D7AB6A', fontWeight: 800, textDecoration: 'underline', fontSize: '11.5px' }}
+                                  >
+                                    🗺️ View GPS on Map
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              style={styles.delBtn}
+                              onClick={() => handleDeleteAttendance(r.id || `att_${i}`)}
+                              title="Delete Record"
+                            >
+                              &times;
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1299,6 +2284,99 @@ export const ManagementPage: React.FC = () => {
             >
               Copy Credentials &amp; Close
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT ROLE & CREDENTIALS MODAL */}
+      {editingUser && (
+        <div style={styles.modalOverlay}>
+          <div style={{ ...styles.loginCard, maxWidth: '520px', border: '2px solid #D7AB6A' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <h2 style={{ fontSize: '17px', fontWeight: 800, color: '#2B1022' }}>
+                ✏️ EDIT ROLE &amp; CREDENTIALS
+              </h2>
+              <button
+                type="button"
+                onClick={() => setEditingUser(null)}
+                style={{ background: 'none', border: 'none', fontSize: '20px', color: '#999', cursor: 'pointer', fontWeight: 800, padding: '0 4px' }}
+              >
+                &times;
+              </button>
+            </div>
+            <p style={{ fontSize: '12.5px', color: '#9C7B4E', marginBottom: '16px' }}>
+              Change role type or set a custom password to permanently replace the default login credential for <strong>{editingUser.name}</strong>.
+            </p>
+
+            <form onSubmit={handleSaveEditUser}>
+              <label style={styles.fieldLabel}>FULL NAME *</label>
+              <input
+                style={styles.fieldInput}
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+              />
+
+              <label style={styles.fieldLabel}>EMAIL ADDRESS *</label>
+              <input
+                type="email"
+                style={styles.fieldInput}
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                required
+              />
+
+              <label style={styles.fieldLabel}>CHANGE ROLE TYPE *</label>
+              <select
+                style={{ ...styles.fieldInput, height: '42px', cursor: 'pointer', fontWeight: 700 }}
+                value={editRole}
+                onChange={(e) => setEditRole(e.target.value as Role)}
+              >
+                {(Object.keys(ROLE_LABELS) as Role[]).map((r) => (
+                  <option key={r} value={r}>
+                    {ROLE_LABELS[r]} — ({ROLE_DESCRIPTIONS[r]})
+                  </option>
+                ))}
+              </select>
+
+              <label style={styles.fieldLabel}>DEPARTMENT</label>
+              <input
+                style={styles.fieldInput}
+                value={editDept}
+                onChange={(e) => setEditDept(e.target.value)}
+                placeholder="e.g. IT, Management, Human Resources"
+              />
+
+              <label style={styles.fieldLabel}>NEW PASSWORD (OPTIONAL)</label>
+              <input
+                type="password"
+                style={styles.fieldInput}
+                value={editPass}
+                onChange={(e) => setEditPass(e.target.value)}
+                placeholder="Leave blank to keep existing password"
+                autoComplete="new-password"
+              />
+              <p style={{ fontSize: '11px', color: '#9C7B4E', marginTop: '4px' }}>
+                💡 Entering a new password here will permanently replace the default credential for this account.
+              </p>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                <button
+                  type="submit"
+                  disabled={isSavingUser}
+                  style={{ ...styles.btnPrimary, marginTop: 0 }}
+                >
+                  {isSavingUser ? '⏳ Saving...' : 'Save Changes'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingUser(null)}
+                  style={{ ...styles.btnGhost, color: '#666', borderColor: '#ccc', width: 'auto', padding: '10px 18px', marginTop: 0 }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -144,51 +144,74 @@ const server = http.createServer(async (req, res) => {
         const body = await parseBody(req);
         const email = (body.email || '').trim().toLowerCase();
         const password = (body.password || '').trim();
-        const role = (body.role || 'manager').trim().toLowerCase();
+        const requestedRole = (body.role || '').trim().toLowerCase();
 
         if (!email || !password) {
           return sendJSON(res, 400, { success: false, message: 'Email and password are required.' });
         }
 
-        const MGMT_USERS = {
-          super_admin: { email: 'superadmin@kworks.com', pass: 'SuperAdmin@2026!' },
-          admin: { email: 'admin@kworks.com', pass: 'Admin@2026!' },
-          manager: { email: 'manager@kworks.com', pass: 'Manager@2026!' },
-          hr: { email: 'hr@kworks.com', pass: 'HR@2026!' },
-          it: { email: 'itsupport@kworks.com', pass: 'ITSupport@2026!' },
-          finance: { email: 'finance@kworks.com', pass: 'Finance@2026!' },
-        };
-
-        const cred = MGMT_USERS[role];
         const mgmtUser = db.getManagementUsers().find(u => u.email?.toLowerCase() === email);
-        const isDefaultCred = cred && email === cred.email.toLowerCase() && password === cred.pass;
-        const isDbMgmtUser = mgmtUser && (await db.verifyManagementUser(email, password));
+        let authenticatedUser = null;
 
-        if (!isDefaultCred && !isDbMgmtUser) {
-          console.warn(`[KwOrKs Auth] Management login failed for ${email} with role ${role}`);
-          return sendJSON(res, 401, {
-            success: false,
-            message: `Invalid management credentials for role "${role.toUpperCase()}".`,
-          });
+        if (mgmtUser) {
+          // Account exists in database: database bcrypt hash is the STRICT authority
+          authenticatedUser = await db.verifyManagementUser(email, password);
+          if (!authenticatedUser) {
+            console.warn(`[KwOrKs Auth] Management login failed: Incorrect database password for ${email}`);
+            return sendJSON(res, 401, {
+              success: false,
+              message: 'Incorrect password for this management account. Default credentials are no longer accepted once an account is configured.',
+            });
+          }
+        } else {
+          // Fallback only if the account is not yet seeded in the database
+          const MGMT_USERS = {
+            super_admin: { email: 'superadmin@kworks.com', pass: 'SuperAdmin@2026!' },
+            admin: { email: 'admin@kworks.com', pass: 'Admin@2026!' },
+            manager: { email: 'manager@kworks.com', pass: 'Manager@2026!' },
+            hr: { email: 'hr@kworks.com', pass: 'HR@2026!' },
+            it: { email: 'itsupport@kworks.com', pass: 'ITSupport@2026!' },
+            finance: { email: 'finance@kworks.com', pass: 'Finance@2026!' },
+          };
+
+          const cred = MGMT_USERS[requestedRole];
+          const isDefaultCred = cred && email === cred.email.toLowerCase() && password === cred.pass;
+          if (isDefaultCred) {
+            authenticatedUser = {
+              id: `mgmt_${requestedRole}`,
+              email: email,
+              role: requestedRole,
+              name: `${requestedRole.toUpperCase()} Administrator`,
+              department: 'Management',
+            };
+          } else {
+            console.warn(`[KwOrKs Auth] Management login failed for ${email}`);
+            return sendJSON(res, 401, {
+              success: false,
+              message: `Invalid management credentials for "${email}". Please verify your email and password.`,
+            });
+          }
         }
 
+        const activeRole = authenticatedUser.role || requestedRole || 'manager';
         const userPayload = {
-          id: mgmtUser?.id || `mgmt_${role}`,
-          email: email,
-          role: role,
-          name: mgmtUser?.name || `${role.toUpperCase()} Administrator`,
+          id: authenticatedUser.id,
+          email: authenticatedUser.email,
+          role: activeRole,
+          name: authenticatedUser.name || `${activeRole.toUpperCase()} Administrator`,
+          department: authenticatedUser.department || 'Management',
         };
 
         const accessToken = generateAccessToken(userPayload);
         const refreshToken = generateRefreshToken(userPayload);
 
-        console.log(`[KwOrKs Auth] Management portal logged in as ${role.toUpperCase()} (${email})`);
+        console.log(`[KwOrKs Auth] Management portal logged in as ${activeRole.toUpperCase()} (${email})`);
         return sendJSON(res, 200, {
           success: true,
-          message: `Logged in as ${role.toUpperCase()}`,
+          message: `Logged in as ${activeRole.toUpperCase()}`,
           accessToken,
           refreshToken,
-          role: role,
+          role: activeRole,
           user: userPayload,
         });
       }
@@ -278,8 +301,12 @@ const server = http.createServer(async (req, res) => {
           return protectedRoute(async () => {
             const parts = pathname.split('/');
             const userId = parts[3];
-            const updated = db.deleteManagementUser(userId);
-            return sendJSON(res, 200, { success: true, data: updated });
+            try {
+              const updated = db.deleteManagementUser(userId);
+              return sendJSON(res, 200, { success: true, data: updated });
+            } catch (e) {
+              return sendJSON(res, 400, { success: false, message: e.message });
+            }
           }, 'management_users:delete')(req, res);
         }
       }
