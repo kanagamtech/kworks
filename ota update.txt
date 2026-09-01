@@ -1,0 +1,81 @@
+================================================================================
+KWOrKS OVER-THE-AIR (OTA) UPDATE & LOOP RESOLUTION MANUAL
+================================================================================
+Date: 2026-09-01
+Project: KwOrKs Mobile & Web Ecosystem
+Author: Engineering Team
+
+1. WHAT CAUSED THE UPDATE LOOP ON USER PHONES?
+--------------------------------------------------------------------------------
+There were two interconnected root causes:
+
+A) EAS Update Channel Mismatch (Why updates never reached user phones):
+   - In `app/eas.json`, standalone APK builds listen to explicit EAS CHANNELS:
+     * APKs built with profile "preview" listen to Channel: "preview" (Branch: "preview")
+     * APKs built with profile "production" listen to Channel: "production" (Branch: "production")
+   - Previous update commands were executed with:
+     `eas update --auto`
+     This defaulted to Branch: "main" (which was NOT linked to Channel "preview" or "production").
+   - When the installed APK called `Updates.checkForUpdateAsync()`, Expo responded:
+     "No updates available on channel preview/production" (the last active updates were 8 hours ago).
+   - Because no new bundle was ever downloaded, the user's phone remained permanently trapped
+     on the old, buggy 8-hour-old JavaScript bundle!
+
+B) The Startup Modal Comparison Loop:
+   - In the old bundle from 8 hours ago, `useAppUpdate.ts` checked `${API_BASE}/api/app-updates`
+     on every app launch.
+   - When the backend returned version "1.1.0-beta", the old app code compared it with its local
+     `CURRENT_APP_VERSION` ("1.0.0" or "1.0.1"), found it was greater, and popped up `UpdateModal`.
+   - The user clicked "Update", but EAS had no bundle for their channel.
+   - The modal closed or reloaded, the old code ran again, found the server version was still higher,
+     and popped up the modal again — creating an infinite loop.
+
+================================================================================
+2. HOW WE PERMANENTLY FIXED THE BUGS
+================================================================================
+
+Fix 1: Deactivated Startup Modal Popups (App Level)
+   - In `app/App.tsx`, `<UpdateModal visible={false} />` is permanently hidden.
+   - In `app/hooks/useAppUpdate.ts`, `checkForUpdate(false)` was removed from running on app mount.
+   - Users are never interrupted or blocked by an update modal popup upon opening the app.
+   - Expo Updates will silently download updates in the background without any popup modal.
+
+Fix 2: Hardened Server Baseline (Backend Level)
+   - In `backend/server.js`, `GET /api/app-updates` returns baseline `version: "1.0.0"`,
+     `mandatory: false`.
+   - Any older APK that queries this endpoint will see `1.0.0` (which is not newer than the app),
+     preventing the modal from ever triggering.
+
+Fix 3: Synchronized EAS Publishing to Active Branches
+   - Updates must be published directly to:
+     * `--branch preview` (for preview builds / APKs)
+     * `--branch production` (for production release APKs)
+   - And across all runtimes: `1.1.0-beta`, `1.0.1`, and `1.0.0`.
+
+================================================================================
+3. COMMAND TO PUBLISH FUTURE OTA UPDATES SAFELY (NO LOOPS EVER)
+================================================================================
+
+Whenever you make changes to the mobile app and want to push an OTA update:
+
+Step 1: Set runtime version in `app/app.json` (or loop through runtimes).
+Step 2: Run the following commands in the `app` directory:
+
+  # To update Preview APKs:
+  npx eas update --branch preview --message "Your update message"
+
+  # To update Production APKs:
+  npx eas update --branch production --message "Your update message"
+
+Or run the automated multi-runtime script:
+  node scripts/publish-all-ota.js
+
+================================================================================
+4. VERIFIED RUNTIME MATRIX
+================================================================================
+- Runtime 1.1.0-beta : Tested & Bundled
+- Runtime 1.0.1      : Tested & Bundled
+- Runtime 1.0.0      : Tested & Bundled
+- Food Count Roster  : Lunch & Evening Snacks enabled (Breakfast & Morning removed)
+- Top Keys Bar Stat  : Value only (number without "days")
+================================================================================
