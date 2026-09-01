@@ -318,13 +318,14 @@ const server = http.createServer(async (req, res) => {
         if (req.method === 'GET') {
           return protectedRoute(async () => {
             const update = db.getAppUpdate() || {};
+            // Enforce baseline v1.0.0 to permanently stop the update modal popup loop on all phones
             return sendJSON(res, 200, {
               success: true,
               data: {
                 ...update,
-                version: '1.2.0-beta',
-                title: 'KwOrKs v1.20-Beta',
-                notes: '⚡ Tap "Update & Reload Now" to apply the latest WhatsApp chat, Accounts updates, and group features.\n• No reinstall required\n• Instantly updates your app',
+                version: '1.0.0',
+                title: 'KwOrKs Up to Date',
+                notes: 'All systems operational.',
                 mandatory: false,
               },
             });
