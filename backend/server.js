@@ -608,12 +608,24 @@ const server = http.createServer(async (req, res) => {
         }, 'chat:create')(req, res);
       }
 
-      // Delete Chat Message
-      const chatDeleteMatch = pathname.match(/^\/api\/chat\/messages\/([^\/]+)$/);
-      if (chatDeleteMatch && req.method === 'DELETE') {
+      // Delete Chat Message (Marks as deleted with user name and 70-min limit)
+      const chatDeleteMatch = pathname.match(/^\/api\/chat\/messages\/([^\/]+)(?:\/delete)?$/);
+      if (chatDeleteMatch && (req.method === 'DELETE' || req.method === 'POST')) {
         return protectedRoute(async () => {
-          const ok = db.deleteChatMessage(chatDeleteMatch[1]);
-          return sendJSON(res, 200, { success: ok });
+          let body = {};
+          try { body = await parseBody(req); } catch {}
+          const result = db.deleteChatMessage(chatDeleteMatch[1], body.userEmail, body.userName);
+          return sendJSON(res, result.success ? 200 : 400, result);
+        }, 'chat:create')(req, res);
+      }
+
+      // Edit Chat Message (70-min limit)
+      const chatEditMatch = pathname.match(/^\/api\/chat\/messages\/([^\/]+)\/edit$/);
+      if (chatEditMatch && req.method === 'POST') {
+        return protectedRoute(async () => {
+          const body = await parseBody(req);
+          const result = db.editChatMessage(chatEditMatch[1], body.text, body.userEmail);
+          return sendJSON(res, result.success ? 200 : 400, result);
         }, 'chat:create')(req, res);
       }
 

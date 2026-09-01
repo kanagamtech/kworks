@@ -432,15 +432,55 @@ class Database {
     return msg;
   }
 
-  deleteChatMessage(msgId) {
-    if (!this.data.chat_messages) return false;
-    const idx = this.data.chat_messages.findIndex(m => m.id === msgId);
-    if (idx !== -1) {
-      this.data.chat_messages.splice(idx, 1);
-      this.save();
-      return true;
+  deleteChatMessage(msgId, userEmail, userName) {
+    if (!this.data.chat_messages) return { success: false, message: 'No messages found.' };
+    const msg = this.data.chat_messages.find(m => m.id === msgId);
+    if (!msg) return { success: false, message: 'Message not found.' };
+
+    // 1 hour and 10 minutes limit = 70 minutes
+    const TIME_LIMIT_MS = 70 * 60 * 1000;
+    const msgAge = Date.now() - new Date(msg.timestamp).getTime();
+    if (msgAge > TIME_LIMIT_MS) {
+      return {
+        success: false,
+        message: 'Time limit expired. Messages can only be deleted within 1 hour and 10 minutes.',
+      };
     }
-    return false;
+
+    // Mark as deleted for everyone (WhatsApp style)
+    msg.isDeleted = true;
+    msg.deletedBy = userName || (userEmail ? userEmail.split('@')[0] : 'Someone');
+    msg.originalText = msg.text;
+    msg.text = 'This message was deleted';
+    delete msg.photo;
+    delete msg.document;
+    msg.deletedAt = new Date().toISOString();
+
+    this.save();
+    return { success: true, data: msg };
+  }
+
+  editChatMessage(msgId, newText, userEmail) {
+    if (!this.data.chat_messages) return { success: false, message: 'No messages found.' };
+    const msg = this.data.chat_messages.find(m => m.id === msgId);
+    if (!msg) return { success: false, message: 'Message not found.' };
+
+    // 1 hour and 10 minutes limit = 70 minutes
+    const TIME_LIMIT_MS = 70 * 60 * 1000;
+    const msgAge = Date.now() - new Date(msg.timestamp).getTime();
+    if (msgAge > TIME_LIMIT_MS) {
+      return {
+        success: false,
+        message: 'Time limit expired. Messages can only be edited within 1 hour and 10 minutes.',
+      };
+    }
+
+    msg.text = newText ? newText.trim() : '';
+    msg.isEdited = true;
+    msg.editedAt = new Date().toISOString();
+
+    this.save();
+    return { success: true, data: msg };
   }
 
   markChatAsRead(readerEmail, conversationPartnerOrGroupId) {

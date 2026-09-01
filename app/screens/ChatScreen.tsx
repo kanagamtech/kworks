@@ -43,6 +43,9 @@ const BRAND = {
   success: '#4EBA6F',
 };
 
+// 1 Hour and 10 minutes in milliseconds = 70 minutes
+const EDIT_DELETE_TIME_LIMIT_MS = 70 * 60 * 1000;
+
 type Props = {
   onBack: () => void;
   user: UserProfile | null;
@@ -87,6 +90,11 @@ type ChatMessage = {
   };
   isSecret?: boolean;
   expiresAt?: number;
+  isDeleted?: boolean;
+  deletedBy?: string;
+  deletedAt?: string;
+  isEdited?: boolean;
+  editedAt?: string;
   timestamp: string;
 };
 
@@ -128,6 +136,11 @@ export default function ChatScreen({ onBack, user }: Props) {
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [selectedPhotoPreview, setSelectedPhotoPreview] = useState<string | null>(null);
   const [activeReactionMsg, setActiveReactionMsg] = useState<ChatMessage | null>(null);
+
+  // Edit Message States
+  const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(null);
+  const [editText, setEditText] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // Secret Chat / Privacy Protection Mode
   const [isSecretMode, setIsSecretMode] = useState(false);
@@ -201,7 +214,7 @@ export default function ChatScreen({ onBack, user }: Props) {
             // Check if a new message arrived for banner notification
             if (lastMsgCountRef.current > 0 && res.data.length > lastMsgCountRef.current) {
               const latest = res.data[res.data.length - 1];
-              if (latest && latest.from?.toLowerCase() !== user.email?.toLowerCase()) {
+              if (latest && latest.from?.toLowerCase() !== user.email?.toLowerCase() && !latest.isDeleted) {
                 // Check if this message belongs to currently open conversation
                 const isCurrentConv =
                   (selectedContact && latest.from?.toLowerCase() === selectedContact.email.toLowerCase()) ||
@@ -408,9 +421,8 @@ export default function ChatScreen({ onBack, user }: Props) {
   // Handler: Download Document Action
   const handleDownloadDoc = (doc: { name: string; size: string; dataUri?: string }) => {
     if (Platform.OS === 'web') {
-      // In web browser, trigger native direct file download
       try {
-        const dummyContent = `KwOrKs Document: ${doc.name}\nGenerated on ${new Date().toLocaleString()}\nVerified secure transfer.`;
+        const dummyContent = `KwOrKs Corporate Document: ${doc.name}\nGenerated on ${new Date().toLocaleString()}\nSecurity: End-to-End Enterprise Encryption Verified.`;
         const blob = new Blob([dummyContent], { type: 'text/plain;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -425,7 +437,6 @@ export default function ChatScreen({ onBack, user }: Props) {
         Alert.alert('Download', `Downloading "${doc.name}"...`);
       }
     } else {
-      // Mobile / Native Download feedback
       Alert.alert('📥 Download File', `Downloading "${doc.name}" (${doc.size}) to your device storage...`, [
         { text: 'View Now', onPress: () => Alert.alert('Document Viewer', `Opening ${doc.name}...`) },
         { text: 'OK' },
@@ -450,26 +461,96 @@ export default function ChatScreen({ onBack, user }: Props) {
       .catch(() => {});
   };
 
-  // Handler: Delete Message
-  const handleDeleteMessage = (msgId: string) => {
+  // Handler: Delete Message (WhatsApp style: 'This message was deleted by [Name]' within 1.10hr)
+  const handleDeleteMessage = (msg: ChatMessage) => {
     setActiveReactionMsg(null);
-    Alert.alert('Delete Message', 'Are you sure you want to delete this message?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          fetch(`${API_BASE}/api/chat/messages/${msgId}`, { method: 'DELETE' })
-            .then((res) => res.json())
-            .then((res) => {
-              if (res.success) {
-                setMessages((prev) => prev.filter((m) => m.id !== msgId));
-              }
+    const age = Date.now() - new Date(msg.timestamp).getTime();
+
+    if (age > EDIT_DELETE_TIME_LIMIT_MS) {
+      Alert.alert(
+        'Time Limit Expired',
+        'Messages can only be deleted within 1 hour and 10 minutes of sending.'
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Delete for Everyone',
+      'This message will be removed and replaced with "This message was deleted".',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete for Everyone',
+          style: 'destructive',
+          onPress: () => {
+            fetch(`${API_BASE}/api/chat/messages/${msg.id}/delete`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userEmail: user?.email,
+                userName: user?.name || user?.email?.split('@')[0],
+              }),
             })
-            .catch(() => {});
+              .then((res) => res.json())
+              .then((res) => {
+                if (res.success && res.data) {
+                  setMessages((prev) => prev.map((m) => (m.id === msg.id ? res.data : m)));
+                } else {
+                  Alert.alert('Notice', res.message || 'Could not delete message.');
+                }
+              })
+              .catch(() => {
+                Alert.alert('Error', 'Network error while deleting.');
+              });
+          },
         },
-      },
-    ]);
+      ]
+    );
+  };
+
+  // Handler: Open Edit Modal (within 1.10hr)
+  const handleOpenEditModal = (msg: ChatMessage) => {
+    setActiveReactionMsg(null);
+    const age = Date.now() - new Date(msg.timestamp).getTime();
+    if (age > EDIT_DELETE_TIME_LIMIT_MS) {
+      Alert.alert(
+        'Time Limit Expired',
+        'Messages can only be edited within 1 hour and 10 minutes of sending.'
+      );
+      return;
+    }
+    setEditingMessage(msg);
+    setEditText(msg.text || '');
+  };
+
+  // Handler: Save Edited Message
+  const handleSaveEditMessage = () => {
+    if (!editingMessage || !editText.trim()) return;
+    setIsSavingEdit(true);
+
+    fetch(`${API_BASE}/api/chat/messages/${editingMessage.id}/edit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: editText.trim(),
+        userEmail: user?.email,
+      }),
+    })
+      .then((res) => res.json())
+      .then((res) => {
+        setIsSavingEdit(false);
+        if (res.success && res.data) {
+          setMessages((prev) => prev.map((m) => (m.id === editingMessage.id ? res.data : m)));
+          setEditingMessage(null);
+          setEditText('');
+        } else {
+          Alert.alert('Notice', res.message || 'Could not edit message.');
+        }
+      })
+      .catch(() => {
+        setIsSavingEdit(false);
+        Alert.alert('Error', 'Network error while updating message.');
+      });
   };
 
   // Handler: Create Group
@@ -629,7 +710,7 @@ export default function ChatScreen({ onBack, user }: Props) {
               </Pressable>
               <View style={{ alignItems: 'center' }}>
                 <Text style={styles.screenHeaderTitle}>KwOrKs Chat</Text>
-                <Text style={styles.screenHeaderSub}>Enterprise WhatsApp Messaging</Text>
+                <Text style={styles.screenHeaderSub}>Enterprise WhatsApp Messaging v1.20-beta</Text>
               </View>
               <View style={styles.navBtn} />
             </View>
@@ -793,6 +874,7 @@ export default function ChatScreen({ onBack, user }: Props) {
                   setSelectedGroup(null);
                   setMessages([]);
                   setReplyingTo(null);
+                  setEditingMessage(null);
                 }}
                 style={styles.backTouch}
               >
@@ -889,7 +971,9 @@ export default function ChatScreen({ onBack, user }: Props) {
                 return (
                   <Pressable
                     style={[styles.bubbleContainer, mine ? styles.bubbleContainerRight : styles.bubbleContainerLeft]}
-                    onLongPress={() => setActiveReactionMsg(item)}
+                    onLongPress={() => {
+                      if (!item.isDeleted) setActiveReactionMsg(item);
+                    }}
                     delayLongPress={300}
                   >
                     <View
@@ -897,23 +981,34 @@ export default function ChatScreen({ onBack, user }: Props) {
                         styles.bubbleCard,
                         mine ? styles.bubbleRight : styles.bubbleLeft,
                         item.isSecret && styles.bubbleSecret,
+                        item.isDeleted && styles.bubbleDeleted,
                       ]}
                     >
                       {/* Sender Name for Group Chats */}
-                      {selectedGroup && !mine && (
+                      {selectedGroup && !mine && !item.isDeleted && (
                         <Text style={styles.groupSenderLabel}>{senderName}</Text>
                       )}
 
                       {/* Quoted Reply Box */}
-                      {item.replyTo && (
+                      {item.replyTo && !item.isDeleted && (
                         <View style={styles.quotedReplyBox}>
                           <Text style={styles.quotedAuthor}>{item.replyTo.author}</Text>
                           <Text style={styles.quotedText} numberOfLines={1}>{item.replyTo.text}</Text>
                         </View>
                       )}
 
-                      {/* CONFIDENTIAL / SECRET MASKED VIEW */}
-                      {isSecretProtected ? (
+                      {/* DELETED MESSAGE (WhatsApp Style) */}
+                      {item.isDeleted ? (
+                        <View style={styles.deletedMsgWrap}>
+                          <Text style={{ fontSize: 16, marginRight: 6 }}>🚫</Text>
+                          <Text style={styles.deletedMsgText}>
+                            {mine
+                              ? 'You deleted this message'
+                              : `This message was deleted by ${item.deletedBy || senderName}`}
+                          </Text>
+                        </View>
+                      ) : isSecretProtected ? (
+                        /* CONFIDENTIAL / SECRET MASKED VIEW */
                         <Pressable style={styles.secretMaskCard} onPress={() => handleRevealSecret(item.id)}>
                           <Text style={{ fontSize: 20 }}>🔒</Text>
                           <View style={{ flex: 1 }}>
@@ -956,13 +1051,16 @@ export default function ChatScreen({ onBack, user }: Props) {
                         </>
                       )}
 
-                      {/* Meta Footer: Timestamp & Checkmarks */}
+                      {/* Meta Footer: Timestamp, Edited Tag & Checkmarks */}
                       <View style={styles.bubbleMetaRow}>
                         {revealedSecrets[item.id] ? (
                           <Text style={styles.secretTimerText}>⏱️ {Math.max(0, Math.ceil((revealedSecrets[item.id] - Date.now()) / 1000))}s</Text>
                         ) : null}
+                        {item.isEdited && !item.isDeleted && (
+                          <Text style={styles.editedTagText}>(edited)</Text>
+                        )}
                         <Text style={styles.bubbleTimeText}>{formatTime(item.timestamp)}</Text>
-                        {mine && (
+                        {mine && !item.isDeleted && (
                           <Text style={[styles.tickStatus, item.status === 'read' && styles.tickStatusRead]}>
                             {item.status === 'read' ? '✓✓' : item.status === 'delivered' ? '✓✓' : '✓'}
                           </Text>
@@ -970,7 +1068,7 @@ export default function ChatScreen({ onBack, user }: Props) {
                       </View>
 
                       {/* Emoji Reaction Badges */}
-                      {reactionsList.length > 0 && (
+                      {!item.isDeleted && reactionsList.length > 0 && (
                         <View style={styles.reactionPillsWrap}>
                           {Array.from(new Set(reactionsList)).map((emoji: any, idx: number) => (
                             <Text key={idx} style={styles.reactionEmojiBadge}>{String(emoji)}</Text>
@@ -1105,7 +1203,7 @@ export default function ChatScreen({ onBack, user }: Props) {
         </Modal>
 
         {/* ========================================================================= */}
-        {/* MODAL 3: MESSAGE ACTIONS & EMOJI REACTIONS                                */}
+        {/* MODAL 3: MESSAGE ACTIONS & EMOJI REACTIONS (With 1.10hr Edit & Delete)    */}
         {/* ========================================================================= */}
         <Modal visible={!!activeReactionMsg} transparent animationType="fade" onRequestClose={() => setActiveReactionMsg(null)}>
           <Pressable style={styles.modalBackdrop} onPress={() => setActiveReactionMsg(null)}>
@@ -1136,13 +1234,31 @@ export default function ChatScreen({ onBack, user }: Props) {
                   <Text style={styles.msgActionText}>Reply</Text>
                 </Pressable>
 
-                {activeReactionMsg?.from?.toLowerCase() === user?.email?.toLowerCase() && (
+                {/* Edit Message Button (Within 1.10hr = 70 mins) */}
+                {Boolean(activeReactionMsg && activeReactionMsg.from?.toLowerCase() === user?.email?.toLowerCase() && !activeReactionMsg.isDeleted) && (
                   <Pressable
                     style={styles.msgActionRow}
-                    onPress={() => activeReactionMsg && handleDeleteMessage(activeReactionMsg.id)}
+                    onPress={() => activeReactionMsg && handleOpenEditModal(activeReactionMsg)}
+                  >
+                    <Text style={styles.msgActionIcon}>✏️</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.msgActionText}>Edit Message</Text>
+                      <Text style={{ color: BRAND.textDim, fontSize: 11 }}>Within 1 hr 10 min of sending</Text>
+                    </View>
+                  </Pressable>
+                )}
+
+                {/* Delete for Everyone Button (Within 1.10hr = 70 mins) */}
+                {Boolean(activeReactionMsg && activeReactionMsg.from?.toLowerCase() === user?.email?.toLowerCase() && !activeReactionMsg.isDeleted) && (
+                  <Pressable
+                    style={styles.msgActionRow}
+                    onPress={() => activeReactionMsg && handleDeleteMessage(activeReactionMsg)}
                   >
                     <Text style={[styles.msgActionIcon, { color: BRAND.danger }]}>🗑️</Text>
-                    <Text style={[styles.msgActionText, { color: BRAND.danger }]}>Delete Message</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.msgActionText, { color: BRAND.danger }]}>Delete for Everyone</Text>
+                      <Text style={{ color: BRAND.textDim, fontSize: 11 }}>Within 1 hr 10 min of sending</Text>
+                    </View>
                   </Pressable>
                 )}
               </View>
@@ -1151,7 +1267,43 @@ export default function ChatScreen({ onBack, user }: Props) {
         </Modal>
 
         {/* ========================================================================= */}
-        {/* MODAL 4: FULLSCREEN PHOTO PREVIEW                                         */}
+        {/* MODAL 4: EDIT MESSAGE MODAL (Within 1.10hr)                               */}
+        {/* ========================================================================= */}
+        <Modal visible={!!editingMessage} transparent animationType="fade" onRequestClose={() => setEditingMessage(null)}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setEditingMessage(null)}>
+            <View style={styles.dialogCard}>
+              <Text style={styles.dialogTitle}>Edit Message</Text>
+              <Text style={styles.dialogSubtitle}>Make changes within 1 hr 10 min window</Text>
+
+              <TextInput
+                style={[styles.dialogInput, { minHeight: 84, textAlignVertical: 'top', marginTop: 12 }]}
+                value={editText}
+                onChangeText={setEditText}
+                placeholder="Edit message..."
+                placeholderTextColor={BRAND.textDim}
+                multiline
+                autoFocus
+              />
+
+              <Pressable
+                style={[styles.confirmAddBtn, (!editText.trim() || isSavingEdit) && { opacity: 0.5 }]}
+                disabled={!editText.trim() || isSavingEdit}
+                onPress={handleSaveEditMessage}
+              >
+                <Text style={styles.confirmAddBtnText}>
+                  {isSavingEdit ? 'Saving...' : '💾 Save Edited Message'}
+                </Text>
+              </Pressable>
+
+              <Pressable style={styles.closeDialogBtn} onPress={() => setEditingMessage(null)}>
+                <Text style={styles.closeDialogBtnText}>Cancel</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Modal>
+
+        {/* ========================================================================= */}
+        {/* MODAL 5: FULLSCREEN PHOTO PREVIEW                                         */}
         {/* ========================================================================= */}
         <Modal visible={!!selectedPhotoPreview} transparent animationType="fade" onRequestClose={() => setSelectedPhotoPreview(null)}>
           <View style={styles.photoPreviewOverlay}>
@@ -1165,7 +1317,7 @@ export default function ChatScreen({ onBack, user }: Props) {
         </Modal>
 
         {/* ========================================================================= */}
-        {/* MODAL 5: GROUP DETAILS & MEMBER ROSTER                                    */}
+        {/* MODAL 6: GROUP DETAILS & MEMBER ROSTER                                    */}
         {/* ========================================================================= */}
         <Modal visible={showGroupInfoModal} transparent animationType="slide" onRequestClose={() => setShowGroupInfoModal(false)}>
           <Pressable style={styles.modalBackdrop} onPress={() => setShowGroupInfoModal(false)}>
@@ -1228,7 +1380,7 @@ export default function ChatScreen({ onBack, user }: Props) {
         </Modal>
 
         {/* ========================================================================= */}
-        {/* MODAL 6: ADD MEMBERS TO GROUP MODAL                                       */}
+        {/* MODAL 7: ADD MEMBERS TO GROUP MODAL                                       */}
         {/* ========================================================================= */}
         <Modal visible={showAddMemberModal} transparent animationType="fade" onRequestClose={() => setShowAddMemberModal(false)}>
           <Pressable style={styles.modalBackdrop} onPress={() => setShowAddMemberModal(false)}>
@@ -1279,7 +1431,7 @@ export default function ChatScreen({ onBack, user }: Props) {
         </Modal>
 
         {/* ========================================================================= */}
-        {/* MODAL 7: CREATE NEW GROUP MODAL                                           */}
+        {/* MODAL 8: CREATE NEW GROUP MODAL                                           */}
         {/* ========================================================================= */}
         <Modal visible={showCreateGroupModal} transparent animationType="slide" onRequestClose={() => setShowCreateGroupModal(false)}>
           <Pressable style={styles.modalBackdrop} onPress={() => setShowCreateGroupModal(false)}>
@@ -1684,6 +1836,27 @@ const styles = StyleSheet.create({
   bubbleSecret: {
     borderWidth: 1,
     borderColor: BRAND.whatsappGreen,
+  },
+  bubbleDeleted: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  deletedMsgWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 3,
+  },
+  deletedMsgText: {
+    color: '#AAA',
+    fontStyle: 'italic',
+    fontSize: 13,
+  },
+  editedTagText: {
+    color: BRAND.textDim,
+    fontSize: 10,
+    fontStyle: 'italic',
+    marginRight: 4,
   },
   groupSenderLabel: {
     color: BRAND.primary,

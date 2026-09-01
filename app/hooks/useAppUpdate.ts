@@ -16,7 +16,7 @@ export interface AppUpdateInfo {
 
 const APPLIED_UPDATE_KEY = 'kworks_applied_update_version';
 const DISMISSED_UPDATE_KEY = 'kworks_dismissed_update_version';
-const CURRENT_APP_VERSION = '1.1.0-beta';
+const CURRENT_APP_VERSION = '1.2.0-beta';
 
 function parseVersionNumbers(ver: string): number[] {
   if (!ver) return [0];

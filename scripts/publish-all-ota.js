@@ -7,9 +7,9 @@ const raw = fs.readFileSync(appJsonPath, 'utf8');
 const parsed = JSON.parse(raw);
 
 const branches = ['preview', 'production'];
-const runtimes = ['1.1.0-beta', '1.0.1', '1.0.0'];
+const runtimes = ['1.2.0-beta', '1.1.0-beta', '1.0.1', '1.0.0'];
 
-console.log('🚀 Starting Multi-Branch, Multi-Runtime EAS OTA Publisher...\n');
+console.log('🚀 Starting Multi-Branch, Multi-Runtime EAS OTA Publisher (v1.20-beta)...\n');
 
 for (const branch of branches) {
   for (const runtime of runtimes) {
@@ -39,7 +39,7 @@ for (const branch of branches) {
   }
 }
 
-// Restore app.json to 1.1.0-beta
-parsed.expo.version = '1.1.0-beta';
+// Restore app.json to 1.2.0-beta
+parsed.expo.version = '1.2.0-beta';
 fs.writeFileSync(appJsonPath, JSON.stringify(parsed, null, 2));
-console.log('\n✅ All EAS branches & runtimes updated successfully! Restored app.json to 1.1.0-beta.');
+console.log('\n✅ All EAS branches & runtimes updated successfully! Restored app.json to 1.2.0-beta.');
