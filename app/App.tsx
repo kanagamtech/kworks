@@ -88,11 +88,11 @@ function Screen({
       {children}
       {onOpenNotifications ? <SiteNotifications onOpen={onOpenNotifications} /> : null}
       <UpdateModal
-        visible={!!updateAvailable}
+        visible={false}
         updateInfo={updateInfo}
-        isDownloading={!!isDownloading}
-        onApply={onApply || (() => {})}
-        onDismiss={onDismiss || (() => {})}
+        isDownloading={false}
+        onApply={() => {}}
+        onDismiss={() => {}}
       />
     </View>
   );

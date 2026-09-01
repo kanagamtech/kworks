@@ -315,7 +315,16 @@ const server = http.createServer(async (req, res) => {
       if (pathname === '/api/app-updates' || pathname === '/api/app-version') {
         if (req.method === 'GET') {
           return protectedRoute(async () => {
-            return sendJSON(res, 200, { success: true, data: db.getAppUpdate() });
+            const update = db.getAppUpdate() || {};
+            // Return baseline v1.0.0 to prevent infinite client modal popup loops
+            return sendJSON(res, 200, {
+              success: true,
+              data: {
+                ...update,
+                version: '1.0.0',
+                mandatory: false,
+              },
+            });
           }, 'updates:read')(req, res);
         }
         if (req.method === 'POST') {

@@ -1304,14 +1304,15 @@
     }
   ],
   "app_updates": {
-    "version": "1.1.0-beta",
-    "buildNumber": 3,
-    "title": "⚡ KwOrKs 1.10-beta: Food Count & Mobile Fix Upgrade",
-    "notes": "• Added Food Count & Meal Distribution system\n• Fixed virtual keyboard auto-dismiss on Mobile Chrome\n• Real-time Biometric Attendance synchronization\n• Optimized performance and UI responsiveness",
+    "version": "1.0.0",
+    "buildNumber": 1,
+    "title": "KwOrKs Production Baseline",
+    "notes": "System stable",
     "mandatory": false,
+    "enabled": false,
     "apkUrl": "",
-    "publishedAt": "2026-09-01T06:32:31.744Z",
-    "updateId": "upd_1788244342233_f1py"
+    "publishedAt": "2026-09-01T00:00:00.000Z",
+    "updateId": "upd_stable"
   },
   "management_users": [
     {

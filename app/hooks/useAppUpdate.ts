@@ -137,12 +137,8 @@ export function useAppUpdate() {
   }, [updateInfo]);
 
   useEffect(() => {
-    // Only check once on initial mount
-    if (!isCheckedRef.current) {
-      isCheckedRef.current = true;
-      checkForUpdate(false);
-    }
-  }, [checkForUpdate]);
+    // Silent mode: Background updates handled via EAS OTA; no startup popup check
+  }, []);
 
   return {
     updateAvailable,
