@@ -161,6 +161,20 @@ export const api = {
     }
   },
 
+  async saveFoodCount(record: any) {
+    try {
+      const res = await fetchWithAuth(`${API_BASE}/food`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(record),
+      });
+      const data = await res.json();
+      return data;
+    } catch (e: any) {
+      throw new Error(e.message || 'Failed to save food count');
+    }
+  },
+
   async getLeaves() {
     try {
       const res = await fetchWithAuth(`${API_BASE}/leaves`);

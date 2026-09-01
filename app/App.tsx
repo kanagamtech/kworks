@@ -342,7 +342,17 @@ function AppInner() {
       );
     }
     return wrapScreen(
-      <HomeScreen user={user} onLoginPress={() => setScreen('login')} onOpenAttendance={() => setScreen('attendance')} onOpenLeave={() => setScreen('leave')} onOpenNotifications={() => setScreen('notifications')} onOpenSupport={() => setScreen('support')} onOpenClaims={() => setScreen('claims')} onOpenChat={() => setScreen('chat')} />
+      <HomeScreen
+        user={user}
+        onLoginPress={() => setScreen('login')}
+        onOpenAttendance={() => setScreen('attendance')}
+        onOpenFoodCount={() => setScreen('foodcount')}
+        onOpenLeave={() => setScreen('leave')}
+        onOpenNotifications={() => setScreen('notifications')}
+        onOpenSupport={() => setScreen('support')}
+        onOpenClaims={() => setScreen('claims')}
+        onOpenChat={() => setScreen('chat')}
+      />
     );
   }
 

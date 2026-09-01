@@ -901,7 +901,372 @@
       "created_at": "2026-09-01T04:24:03.173Z"
     }
   ],
-  "food_counts": [],
+  "food_counts": [
+    {
+      "id": "fc_1788240000000",
+      "date": "2026-09-01",
+      "user": "gokulram@quantummate.in",
+      "name": "Gokulram",
+      "meals": {
+        "breakfast": false,
+        "morningSnacks": false,
+        "lunch": true,
+        "eveningSnacks": false
+      },
+      "updated_at": "2026-09-01T06:31:53.634Z"
+    },
+    {
+      "id": "fc_1788240001000",
+      "date": "2026-09-01",
+      "user": "naveenmugesh@kanagamtech.in",
+      "name": "Naveen Mugesh",
+      "meals": {
+        "breakfast": true,
+        "morningSnacks": true,
+        "lunch": true,
+        "eveningSnacks": true
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240002000",
+      "date": "2026-09-01",
+      "user": "ashwin@kanagamtech.in",
+      "name": "Ashwin",
+      "meals": {
+        "breakfast": true,
+        "morningSnacks": true,
+        "lunch": true,
+        "eveningSnacks": true
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240003000",
+      "date": "2026-09-01",
+      "user": "logesh@kanagamtech.in",
+      "name": "Logesh",
+      "meals": {
+        "breakfast": true,
+        "morningSnacks": true,
+        "lunch": true,
+        "eveningSnacks": false
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240004000",
+      "date": "2026-09-01",
+      "user": "pragathish@kanagamtech.in",
+      "name": "Pragathish",
+      "meals": {
+        "breakfast": true,
+        "morningSnacks": false,
+        "lunch": true,
+        "eveningSnacks": true
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240005000",
+      "date": "2026-09-01",
+      "user": "harshsharma@kanagamtech.in",
+      "name": "Harshsharma",
+      "meals": {
+        "breakfast": false,
+        "morningSnacks": true,
+        "lunch": true,
+        "eveningSnacks": true
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240006000",
+      "date": "2026-09-01",
+      "user": "sithan@kanagamtech.in",
+      "name": "Sithan",
+      "meals": {
+        "breakfast": true,
+        "morningSnacks": true,
+        "lunch": true,
+        "eveningSnacks": false
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240007000",
+      "date": "2026-09-01",
+      "user": "sundarrajan@amsems.in",
+      "name": "Sundarrajan",
+      "meals": {
+        "breakfast": true,
+        "morningSnacks": true,
+        "lunch": true,
+        "eveningSnacks": true
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240008000",
+      "date": "2026-09-01",
+      "user": "thiru@kanagamtech.in",
+      "name": "Thiru",
+      "meals": {
+        "breakfast": true,
+        "morningSnacks": false,
+        "lunch": true,
+        "eveningSnacks": true
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240009000",
+      "date": "2026-09-01",
+      "user": "arulpriya@amsems.in",
+      "name": "Arulpriya",
+      "meals": {
+        "breakfast": true,
+        "morningSnacks": true,
+        "lunch": true,
+        "eveningSnacks": false
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240010000",
+      "date": "2026-09-01",
+      "user": "elangovan@kanagamtech.in",
+      "name": "Elangovan",
+      "meals": {
+        "breakfast": false,
+        "morningSnacks": true,
+        "lunch": true,
+        "eveningSnacks": true
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240011000",
+      "date": "2026-09-01",
+      "user": "murali@kanagamtech.in",
+      "name": "Murali",
+      "meals": {
+        "breakfast": true,
+        "morningSnacks": true,
+        "lunch": true,
+        "eveningSnacks": true
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240012000",
+      "date": "2026-09-01",
+      "user": "sivakumar@amsems.in",
+      "name": "Sivakumar",
+      "meals": {
+        "breakfast": true,
+        "morningSnacks": false,
+        "lunch": true,
+        "eveningSnacks": false
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240013000",
+      "date": "2026-09-01",
+      "user": "kalaiselvi@amsems.in",
+      "name": "Kalaiselvi",
+      "meals": {
+        "breakfast": true,
+        "morningSnacks": true,
+        "lunch": true,
+        "eveningSnacks": true
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240014000",
+      "date": "2026-09-01",
+      "user": "rohith@kanagamtech.in",
+      "name": "Rohith",
+      "meals": {
+        "breakfast": true,
+        "morningSnacks": true,
+        "lunch": true,
+        "eveningSnacks": true
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240015000",
+      "date": "2026-09-01",
+      "user": "thenmozhi@amsems.in",
+      "name": "Thenmozhi",
+      "meals": {
+        "breakfast": false,
+        "morningSnacks": true,
+        "lunch": true,
+        "eveningSnacks": false
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240016000",
+      "date": "2026-09-01",
+      "user": "ragul@kanagamtech.in",
+      "name": "Ragul",
+      "meals": {
+        "breakfast": true,
+        "morningSnacks": false,
+        "lunch": true,
+        "eveningSnacks": true
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240017000",
+      "date": "2026-09-01",
+      "user": "sasikala@amsems.in",
+      "name": "Sasikala",
+      "meals": {
+        "breakfast": true,
+        "morningSnacks": true,
+        "lunch": true,
+        "eveningSnacks": true
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240018000",
+      "date": "2026-09-01",
+      "user": "jagades@kanagamtech.in",
+      "name": "jagades",
+      "meals": {
+        "breakfast": true,
+        "morningSnacks": true,
+        "lunch": true,
+        "eveningSnacks": false
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240019000",
+      "date": "2026-09-01",
+      "user": "abinesh.s@emsstore.in",
+      "name": "Abinesh.S",
+      "meals": {
+        "breakfast": true,
+        "morningSnacks": true,
+        "lunch": true,
+        "eveningSnacks": true
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240020000",
+      "date": "2026-09-01",
+      "user": "lavanya@kanagamtech.in",
+      "name": "Lavanya",
+      "meals": {
+        "breakfast": false,
+        "morningSnacks": false,
+        "lunch": true,
+        "eveningSnacks": true
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240021000",
+      "date": "2026-09-01",
+      "user": "jona@quantummate.in",
+      "name": "Jona",
+      "meals": {
+        "breakfast": true,
+        "morningSnacks": true,
+        "lunch": true,
+        "eveningSnacks": false
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240022000",
+      "date": "2026-09-01",
+      "user": "dineshbabu@kanagamtech.in",
+      "name": "Dinesh Babu",
+      "meals": {
+        "breakfast": true,
+        "morningSnacks": true,
+        "lunch": true,
+        "eveningSnacks": true
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240023000",
+      "date": "2026-09-01",
+      "user": "sudharson@emsstore.in",
+      "name": "Sudharson",
+      "meals": {
+        "breakfast": true,
+        "morningSnacks": true,
+        "lunch": true,
+        "eveningSnacks": true
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240024000",
+      "date": "2026-09-01",
+      "user": "tamilmukilan@emsstore.in",
+      "name": "Tamil Mukilan",
+      "meals": {
+        "breakfast": true,
+        "morningSnacks": false,
+        "lunch": true,
+        "eveningSnacks": false
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240025000",
+      "date": "2026-09-01",
+      "user": "adith@quantummate.in",
+      "name": "Adith",
+      "meals": {
+        "breakfast": false,
+        "morningSnacks": true,
+        "lunch": true,
+        "eveningSnacks": true
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240026000",
+      "date": "2026-09-01",
+      "user": "sabarees@quantummate.in",
+      "name": "Sabarees",
+      "meals": {
+        "breakfast": true,
+        "morningSnacks": true,
+        "lunch": true,
+        "eveningSnacks": true
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    },
+    {
+      "id": "fc_1788240027000",
+      "date": "2026-09-01",
+      "user": "ponhari@quantummate.in",
+      "name": "Ponhari",
+      "meals": {
+        "breakfast": true,
+        "morningSnacks": true,
+        "lunch": true,
+        "eveningSnacks": false
+      },
+      "updated_at": "2026-09-01T06:31:53.635Z"
+    }
+  ],
   "leave_requests": {},
   "tickets": [],
   "notices": [
@@ -939,14 +1304,14 @@
     }
   ],
   "app_updates": {
-    "version": "1.0.1",
-    "buildNumber": 2,
-    "title": "⚡ Biometric Attendance & Shift Sync Engine 2.0",
-    "notes": "• Biometric scan upgrade\n• Real-time shift notifications",
+    "version": "1.1.0-beta",
+    "buildNumber": 3,
+    "title": "⚡ KwOrKs 1.10-beta: Food Count & Mobile Fix Upgrade",
+    "notes": "• Added Food Count & Meal Distribution system\n• Fixed virtual keyboard auto-dismiss on Mobile Chrome\n• Real-time Biometric Attendance synchronization\n• Optimized performance and UI responsiveness",
     "mandatory": false,
     "apkUrl": "",
-    "publishedAt": "2026-08-27T12:11:05.209Z",
-    "updateId": "upd_1787832665209_xdsy"
+    "publishedAt": "2026-09-01T06:32:31.744Z",
+    "updateId": "upd_1788244342233_f1py"
   },
   "management_users": [
     {

@@ -113,6 +113,13 @@ export const ManagementPage: React.FC = () => {
   const [attendanceSearch, setAttendanceSearch] = useState('');
   const [attendanceCompanyFilter, setAttendanceCompanyFilter] = useState('ALL');
 
+  // Food Count Filter & Action States
+  const [foodDate, setFoodDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [foodSearch, setFoodSearch] = useState('');
+  const [foodCompanyFilter, setFoodCompanyFilter] = useState('ALL');
+  const [isUpdatingFood, setIsUpdatingFood] = useState(false);
+  const [foodStatusMsg, setFoodStatusMsg] = useState('');
+
   // Management Users & Roles State
   const [mgmtUsers, setMgmtUsers] = useState<any[]>([]);
   const [editingUser, setEditingUser] = useState<any | null>(null);
@@ -1836,31 +1843,483 @@ export const ManagementPage: React.FC = () => {
           );
         })()}
 
-        {/* TAB 3: FOOD COUNT */}
-        {activeTab === 'food' && (
-          <div>
-            <h2 style={styles.panelTitle}>Food Count — meal distribution</h2>
-            <div style={styles.listTitle}>SUBMITTED MEAL ENTRIES</div>
-            {foodCounts.length === 0 ? (
-              <p style={styles.emptyText}>No food counts submitted yet.</p>
-            ) : (
-              foodCounts.map((f, i) => (
-                <div key={i} style={styles.listRow}>
-                  <div style={{ flex: 1 }}>
-                    <div style={styles.empName}>{f.user}</div>
-                    <div style={styles.empSub}>
-                      Date: {f.date} &nbsp;&middot;&nbsp; 
-                      Breakfast: {f.meals?.breakfast ? '✅' : '❌'} &nbsp;&middot;&nbsp; 
-                      Morning Snacks: {f.meals?.morningSnacks ? '✅' : '❌'} &nbsp;&middot;&nbsp; 
-                      Lunch: {f.meals?.lunch ? '✅' : '❌'} &nbsp;&middot;&nbsp; 
-                      Evening Snacks: {f.meals?.eveningSnacks ? '✅' : '❌'}
-                    </div>
-                  </div>
+        {/* TAB 3: FOOD COUNT — MEAL DISTRIBUTION */}
+        {activeTab === 'food' && (() => {
+          const allFoodDates = Array.from(
+            new Set([
+              ...foodCounts.map((f) => f.date).filter(Boolean),
+              ...attendance.map((a) => a.date).filter(Boolean),
+            ])
+          ).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+
+          const todayStr = new Date().toISOString().split('T')[0];
+          const selectedDate = foodDate || (allFoodDates[0] || todayStr);
+
+          // Food count records matching selectedDate
+          const dateFoodRecords = foodCounts.filter((f) => f.date === selectedDate);
+          const dateAttRecords = attendance.filter((a) => a.date === selectedDate);
+
+          const foodMap = new Map<string, any>();
+          dateFoodRecords.forEach((f) => {
+            const key = (f.user || '').trim().toLowerCase();
+            if (key) foodMap.set(key, f);
+          });
+
+          const attMap = new Map<string, any>();
+          dateAttRecords.forEach((a) => {
+            const key = (a.user || '').trim().toLowerCase();
+            if (key && !attMap.has(key)) attMap.set(key, a);
+          });
+
+          // Headcount metrics
+          let breakfastTotal = 0;
+          let morningSnacksTotal = 0;
+          let lunchTotal = 0;
+          let eveningSnacksTotal = 0;
+
+          dateFoodRecords.forEach((f) => {
+            if (f.meals?.breakfast) breakfastTotal++;
+            if (f.meals?.morningSnacks) morningSnacksTotal++;
+            if (f.meals?.lunch) lunchTotal++;
+            if (f.meals?.eveningSnacks) eveningSnacksTotal++;
+          });
+
+          // Build roster combining onboarded employees + present employees + submitted meals
+          const rosterMap = new Map<string, any>();
+
+          employees.forEach((emp) => {
+            const key = (emp.email || '').trim().toLowerCase();
+            if (key) {
+              const fRecord = foodMap.get(key);
+              const aRecord = attMap.get(key);
+              rosterMap.set(key, {
+                email: emp.email,
+                name: emp.name,
+                id: emp.id,
+                company: emp.company || 'kanagamtech',
+                department: emp.department || 'General',
+                photo: emp.photo,
+                meals: fRecord?.meals || { breakfast: false, morningSnacks: false, lunch: false, eveningSnacks: false },
+                hasSubmitted: !!fRecord,
+                isPresent: !!aRecord,
+                checkInTime: aRecord?.time,
+              });
+            }
+          });
+
+          // Add any food entry whose email isn't in employees
+          dateFoodRecords.forEach((f) => {
+            const key = (f.user || '').trim().toLowerCase();
+            if (key && !rosterMap.has(key)) {
+              const aRecord = attMap.get(key);
+              rosterMap.set(key, {
+                email: f.user,
+                name: f.name || f.user.split('@')[0],
+                id: 'EXT',
+                company: 'kanagamtech',
+                department: 'External / Contractor',
+                meals: f.meals || { breakfast: false, morningSnacks: false, lunch: false, eveningSnacks: false },
+                hasSubmitted: true,
+                isPresent: !!aRecord,
+                checkInTime: aRecord?.time,
+              });
+            }
+          });
+
+          const fullRoster = Array.from(rosterMap.values());
+
+          // Filter by Company and Search
+          const filteredRoster = fullRoster.filter((item) => {
+            if (foodCompanyFilter !== 'ALL' && item.company?.toLowerCase() !== foodCompanyFilter.toLowerCase()) {
+              return false;
+            }
+            if (foodSearch.trim()) {
+              const q = foodSearch.toLowerCase();
+              const mName = (item.name || '').toLowerCase().includes(q);
+              const mEmail = (item.email || '').toLowerCase().includes(q);
+              const mDept = (item.department || '').toLowerCase().includes(q);
+              const mId = (item.id || '').toLowerCase().includes(q);
+              if (!mName && !mEmail && !mDept && !mId) return false;
+            }
+            return true;
+          });
+
+          // Handler: Toggle single meal for employee
+          const handleToggleMeal = async (userEmail: string, mealKey: 'breakfast' | 'morningSnacks' | 'lunch' | 'eveningSnacks', currentVal: boolean) => {
+            const existing = foodMap.get(userEmail.toLowerCase());
+            const currentMeals = existing?.meals || { breakfast: false, morningSnacks: false, lunch: false, eveningSnacks: false };
+            const updatedMeals = { ...currentMeals, [mealKey]: !currentVal };
+
+            const payload = {
+              date: selectedDate,
+              user: userEmail,
+              meals: updatedMeals,
+            };
+
+            try {
+              await api.saveFoodCount(payload);
+              setFoodCounts((prev) => {
+                const idx = prev.findIndex((f) => f.date === selectedDate && (f.user || '').toLowerCase() === userEmail.toLowerCase());
+                if (idx >= 0) {
+                  const copy = [...prev];
+                  copy[idx] = { ...copy[idx], meals: updatedMeals };
+                  return copy;
+                }
+                return [{ id: `fc_${Date.now()}`, ...payload }, ...prev];
+              });
+              setFoodStatusMsg(`✅ Updated ${mealKey} for ${userEmail}`);
+              setTimeout(() => setFoodStatusMsg(''), 2500);
+            } catch (e: any) {
+              setFoodStatusMsg(`❌ Failed to update meal: ${e.message}`);
+            }
+          };
+
+          // Handler: Mark all present employees for lunch
+          const handleMarkPresentLunch = async () => {
+            setIsUpdatingFood(true);
+            setFoodStatusMsg('⏳ Pre-filling Lunch for all present employees...');
+            try {
+              const presentItems = fullRoster.filter((r) => r.isPresent);
+              for (const item of presentItems) {
+                const updatedMeals = { ...(item.meals || {}), lunch: true };
+                await api.saveFoodCount({ date: selectedDate, user: item.email, meals: updatedMeals });
+              }
+              const refreshed = await api.getFoodCounts();
+              if (Array.isArray(refreshed)) {
+                setFoodCounts(refreshed);
+              }
+              setFoodStatusMsg(`✅ Successfully marked Lunch for all ${presentItems.length} present employees!`);
+              setTimeout(() => setFoodStatusMsg(''), 3500);
+            } catch (e: any) {
+              setFoodStatusMsg(`❌ Error: ${e.message}`);
+            } finally {
+              setIsUpdatingFood(false);
+            }
+          };
+
+          // Handler: Export CSV
+          const handleExportCSV = () => {
+            const headers = ['Employee Name', 'EMP ID', 'Email', 'Company', 'Department', 'Date', 'Present', 'Breakfast', 'Morning Snacks', 'Lunch', 'Evening Snacks'];
+            const rows = [headers.join(',')];
+            filteredRoster.forEach((r) => {
+              rows.push([
+                `"${r.name || ''}"`,
+                `"${r.id || ''}"`,
+                `"${r.email || ''}"`,
+                `"${r.company || ''}"`,
+                `"${r.department || ''}"`,
+                `"${selectedDate}"`,
+                r.isPresent ? 'YES' : 'NO',
+                r.meals?.breakfast ? 'YES' : 'NO',
+                r.meals?.morningSnacks ? 'YES' : 'NO',
+                r.meals?.lunch ? 'YES' : 'NO',
+                r.meals?.eveningSnacks ? 'YES' : 'NO',
+              ].join(','));
+            });
+            const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `kworks_food_count_${selectedDate}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+          };
+
+          return (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' }}>
+                <h2 style={{ ...styles.panelTitle, margin: 0, textAlign: 'left' }}>
+                  🍱 Food Count — Meal Distribution &amp; Catering Orders
+                </h2>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={handleMarkPresentLunch}
+                    disabled={isUpdatingFood}
+                    style={{
+                      ...styles.btnPrimary,
+                      backgroundColor: '#2E8B57',
+                      color: '#FFFFFF',
+                      width: 'auto',
+                      padding: '8px 14px',
+                      fontSize: '12px',
+                      fontWeight: 800,
+                      marginTop: 0,
+                      cursor: isUpdatingFood ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {isUpdatingFood ? '⏳ Marking...' : '⚡ Mark All Present for Lunch'}
+                  </button>
+                  <button
+                    onClick={handleExportCSV}
+                    style={{
+                      ...styles.btnPrimary,
+                      backgroundColor: '#D7AB6A',
+                      color: '#2B1022',
+                      width: 'auto',
+                      padding: '8px 14px',
+                      fontSize: '12px',
+                      fontWeight: 800,
+                      marginTop: 0,
+                    }}
+                  >
+                    📥 Export Catering Sheet (CSV)
+                  </button>
                 </div>
-              ))
-            )}
-          </div>
-        )}
+              </div>
+
+              {foodStatusMsg && (
+                <div style={{ padding: '10px 14px', borderRadius: '8px', backgroundColor: foodStatusMsg.startsWith('✅') ? 'rgba(46,139,87,0.12)' : 'rgba(224,80,80,0.12)', color: foodStatusMsg.startsWith('✅') ? '#2E8B57' : '#E05050', fontWeight: 700, fontSize: '13px', marginBottom: '14px' }}>
+                  {foodStatusMsg}
+                </div>
+              )}
+
+              {/* KPI HEADCOUNT SUMMARY CARDS */}
+              <div style={styles.chipsRow}>
+                <div style={{ ...styles.chip, backgroundColor: 'rgba(215,171,106,0.15)', borderColor: '#D7AB6A' }}>
+                  <div style={{ ...styles.chipValue, color: '#D7AB6A' }}>🥪 {breakfastTotal}</div>
+                  <div style={styles.chipLabel}>Breakfast Orders</div>
+                </div>
+                <div style={{ ...styles.chip, backgroundColor: 'rgba(2,136,209,0.12)', borderColor: '#0288D1' }}>
+                  <div style={{ ...styles.chipValue, color: '#0288D1' }}>☕ {morningSnacksTotal}</div>
+                  <div style={styles.chipLabel}>Morning Snacks</div>
+                </div>
+                <div style={{ ...styles.chip, backgroundColor: 'rgba(46,139,87,0.15)', borderColor: '#2E8B57' }}>
+                  <div style={{ ...styles.chipValue, color: '#2E8B57' }}>🍱 {lunchTotal}</div>
+                  <div style={styles.chipLabel}>Lunch Orders</div>
+                </div>
+                <div style={{ ...styles.chip, backgroundColor: 'rgba(230,81,0,0.12)', borderColor: '#E65100' }}>
+                  <div style={{ ...styles.chipValue, color: '#E65100' }}>🧃 {eveningSnacksTotal}</div>
+                  <div style={styles.chipLabel}>Evening Snacks</div>
+                </div>
+                <div style={{ ...styles.chip, backgroundColor: '#F7EFE2' }}>
+                  <div style={{ ...styles.chipValue, color: '#2B1022' }}>👥 {dateFoodRecords.length} / {employees.length}</div>
+                  <div style={styles.chipLabel}>Participating Employees</div>
+                </div>
+              </div>
+
+              {/* DATE, COMPANY & SEARCH FILTER BAR */}
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', margin: '14px 0 20px', padding: '12px 16px', backgroundColor: '#F7EFE2', borderRadius: '12px', border: '1px solid #D7AB6A' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 800, color: '#2B1022' }}>📅 DATE:</label>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setFoodDate(e.target.value)}
+                    style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #D7AB6A', fontSize: '13px', fontWeight: 700, backgroundColor: '#FFFFFF', color: '#2B1022' }}
+                  />
+                  <button
+                    onClick={() => setFoodDate(todayStr)}
+                    style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #D7AB6A', backgroundColor: selectedDate === todayStr ? '#D7AB6A' : '#FFFFFF', color: selectedDate === todayStr ? '#2B1022' : '#7A4F1D', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}
+                  >
+                    Today
+                  </button>
+                </div>
+
+                {allFoodDates.length > 0 && (
+                  <select
+                    value={selectedDate}
+                    onChange={(e) => setFoodDate(e.target.value)}
+                    style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #D7AB6A', fontSize: '12px', fontWeight: 700, backgroundColor: '#FFFFFF', color: '#2B1022' }}
+                  >
+                    {allFoodDates.map((d) => (
+                      <option key={d} value={d}>
+                        {d} ({foodCounts.filter((f) => f.date === d).length} meal records)
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <select
+                    value={foodCompanyFilter}
+                    onChange={(e) => setFoodCompanyFilter(e.target.value)}
+                    style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #D7AB6A', fontSize: '12px', fontWeight: 700, backgroundColor: '#FFFFFF', color: '#2B1022' }}
+                  >
+                    <option value="ALL">🏢 All Companies</option>
+                    {companies.map((c) => (
+                      <option key={c} value={c}>🏢 {c}</option>
+                    ))}
+                  </select>
+
+                  <input
+                    type="text"
+                    value={foodSearch}
+                    onChange={(e) => setFoodSearch(e.target.value)}
+                    placeholder="🔍 Search employee name, email..."
+                    style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #D7AB6A', fontSize: '12px', width: '220px', backgroundColor: '#FFFFFF', color: '#2B1022' }}
+                  />
+                </div>
+              </div>
+
+              {/* EMPLOYEE MEAL ROSTER TABLE */}
+              <div style={styles.listTitle}>
+                EMPLOYEE MEAL DISTRIBUTION ROSTER ({filteredRoster.length} EMPLOYEES)
+              </div>
+
+              {filteredRoster.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '36px 16px', color: '#9C7B4E' }}>
+                  <p style={{ fontSize: '15px', fontWeight: 700, marginBottom: '6px' }}>
+                    No employee records match the selected filters.
+                  </p>
+                  <p style={{ fontSize: '12px' }}>Try selecting a different date or clearing the search filter.</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {filteredRoster.map((emp, i) => {
+                    const meals = emp.meals || {};
+                    return (
+                      <div
+                        key={emp.email || i}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: '12px',
+                          padding: '12px 16px',
+                          borderRadius: '12px',
+                          border: emp.hasSubmitted ? '1.5px solid #D7AB6A' : '1px solid #E5D4B8',
+                          backgroundColor: emp.hasSubmitted ? '#FFFFFF' : 'rgba(247,239,226,0.4)',
+                        }}
+                      >
+                        {/* Employee Identity */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '260px' }}>
+                          <div style={{ ...styles.thumbWrap, width: '42px', height: '42px', borderRadius: '21px', backgroundColor: '#F7EFE2', fontWeight: 800, fontSize: '15px', color: '#2B1022' }}>
+                            {emp.photo ? (
+                              <img src={emp.photo} alt={emp.name} style={styles.thumbImg} />
+                            ) : (
+                              (emp.name || emp.email || 'E').substring(0, 1).toUpperCase()
+                            )}
+                          </div>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={styles.empName}>{emp.name || emp.email}</span>
+                              <span style={{ fontSize: '11px', color: '#9C7B4E', fontWeight: 700 }}>
+                                ({emp.id || 'EMP'})
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: '10px',
+                                  fontWeight: 800,
+                                  padding: '2px 6px',
+                                  borderRadius: '6px',
+                                  backgroundColor: 'rgba(215,171,106,0.18)',
+                                  color: '#7A4F1D',
+                                  border: '1px solid #D7AB6A',
+                                }}
+                              >
+                                🏢 {emp.company}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '11.5px', color: '#666', marginTop: '2px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+                              <span>{emp.department} &middot; {emp.email}</span>
+                              {emp.isPresent ? (
+                                <span style={{ color: '#2E8B57', fontWeight: 800, fontSize: '11px' }}>
+                                  ✓ Present ({emp.checkInTime || 'Checked in'})
+                                </span>
+                              ) : (
+                                <span style={{ color: '#9C7B4E', fontSize: '11px' }}>
+                                  Not Checked In
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Interactive Meal Toggles */}
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                          {/* Breakfast */}
+                          <button
+                            onClick={() => handleToggleMeal(emp.email, 'breakfast', !!meals.breakfast)}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              border: meals.breakfast ? '1.5px solid #D7AB6A' : '1px dashed #ccc',
+                              backgroundColor: meals.breakfast ? 'rgba(215,171,106,0.22)' : 'transparent',
+                              color: meals.breakfast ? '#2B1022' : '#888',
+                              fontWeight: meals.breakfast ? 800 : 500,
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            <span>🥪 Breakfast</span>
+                            <span>{meals.breakfast ? '✅' : '⚪'}</span>
+                          </button>
+
+                          {/* Morning Snacks */}
+                          <button
+                            onClick={() => handleToggleMeal(emp.email, 'morningSnacks', !!meals.morningSnacks)}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              border: meals.morningSnacks ? '1.5px solid #0288D1' : '1px dashed #ccc',
+                              backgroundColor: meals.morningSnacks ? 'rgba(2,136,209,0.15)' : 'transparent',
+                              color: meals.morningSnacks ? '#0288D1' : '#888',
+                              fontWeight: meals.morningSnacks ? 800 : 500,
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            <span>☕ Morning</span>
+                            <span>{meals.morningSnacks ? '✅' : '⚪'}</span>
+                          </button>
+
+                          {/* Lunch */}
+                          <button
+                            onClick={() => handleToggleMeal(emp.email, 'lunch', !!meals.lunch)}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              border: meals.lunch ? '1.5px solid #2E8B57' : '1px dashed #ccc',
+                              backgroundColor: meals.lunch ? 'rgba(46,139,87,0.18)' : 'transparent',
+                              color: meals.lunch ? '#2E8B57' : '#888',
+                              fontWeight: meals.lunch ? 800 : 500,
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            <span>🍱 Lunch</span>
+                            <span>{meals.lunch ? '✅' : '⚪'}</span>
+                          </button>
+
+                          {/* Evening Snacks */}
+                          <button
+                            onClick={() => handleToggleMeal(emp.email, 'eveningSnacks', !!meals.eveningSnacks)}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              border: meals.eveningSnacks ? '1.5px solid #E65100' : '1px dashed #ccc',
+                              backgroundColor: meals.eveningSnacks ? 'rgba(230,81,0,0.15)' : 'transparent',
+                              color: meals.eveningSnacks ? '#E65100' : '#888',
+                              fontWeight: meals.eveningSnacks ? 800 : 500,
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            <span>🧃 Evening</span>
+                            <span>{meals.eveningSnacks ? '✅' : '⚪'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* TAB 4: LEAVE APPROVAL */}
         {activeTab === 'leaves' && (

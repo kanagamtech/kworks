@@ -19,6 +19,7 @@ const BRAND = {
 
 const MENU_ITEMS = [
   { id: 'attendance', label: 'ATTENDANCE', icon: require('../assets/images/icon-attendance.png'), theme: 'blue' },
+  { id: 'food', label: 'FOOD COUNT', icon: require('../assets/images/icon-attendance.png'), theme: 'green' },
   { id: 'leave', label: 'LEAVE MANAGEMENT', icon: require('../assets/images/icon-leave.png'), theme: 'green' },
   { id: 'notification', label: 'NOTIFICATION', icon: require('../assets/images/icon-notification.png'), theme: 'blue' },
   { id: 'support', label: 'SUPPORT', icon: require('../assets/images/icon-support.png'), theme: 'green' },
@@ -30,6 +31,7 @@ type Props = {
   user: UserProfile | null;
   onLoginPress: () => void;
   onOpenAttendance: () => void;
+  onOpenFoodCount: () => void;
   onOpenLeave: () => void;
   onOpenNotifications: () => void;
   onOpenSupport: () => void;
@@ -37,7 +39,7 @@ type Props = {
   onOpenChat: () => void;
 };
 
-export default function HomeScreen({ user, onLoginPress, onOpenAttendance, onOpenLeave, onOpenNotifications, onOpenSupport, onOpenClaims, onOpenChat }: Props) {
+export default function HomeScreen({ user, onLoginPress, onOpenAttendance, onOpenFoodCount, onOpenLeave, onOpenNotifications, onOpenSupport, onOpenClaims, onOpenChat }: Props) {
   const { theme, mode, toggleTheme } = useTheme();
   const { kind, columns, contentMaxWidth, cardAspect, scale } = useResponsive();
   const gridOpacity = useRef(new Animated.Value(0)).current;
@@ -67,6 +69,8 @@ export default function HomeScreen({ user, onLoginPress, onOpenAttendance, onOpe
   const handleCardPress = (id: string) => {
     if (id === 'attendance') {
       onOpenAttendance();
+    } else if (id === 'food') {
+      onOpenFoodCount();
     } else if (id === 'leave') {
       onOpenLeave();
     } else if (id === 'notification') {

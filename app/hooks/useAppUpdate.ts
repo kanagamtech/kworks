@@ -16,11 +16,19 @@ export interface AppUpdateInfo {
 
 const APPLIED_UPDATE_KEY = 'kworks_applied_update_version';
 const DISMISSED_UPDATE_KEY = 'kworks_dismissed_update_version';
-const CURRENT_APP_VERSION = '1.0.2';
+const CURRENT_APP_VERSION = '1.1.0-beta';
+
+function parseVersionNumbers(ver: string): number[] {
+  if (!ver) return [0];
+  // Extract all numeric segments, e.g. "1.10 beta" -> [1, 10], "1.1.0-beta" -> [1, 1, 0]
+  const cleaned = ver.replace(/[^0-9.]/g, '');
+  const parts = cleaned.split('.').filter(Boolean).map((p) => parseInt(p, 10) || 0);
+  return parts.length > 0 ? parts : [0];
+}
 
 function isVersionGreater(serverVer: string, currentVer: string): boolean {
-  const sParts = (serverVer || '').split('.').map((p) => parseInt(p, 10) || 0);
-  const cParts = (currentVer || '').split('.').map((p) => parseInt(p, 10) || 0);
+  const sParts = parseVersionNumbers(serverVer);
+  const cParts = parseVersionNumbers(currentVer);
   for (let i = 0; i < Math.max(sParts.length, cParts.length); i++) {
     const s = sParts[i] || 0;
     const c = cParts[i] || 0;
@@ -54,16 +62,20 @@ export function useAppUpdate() {
           const dismissedVer = await AsyncStorage.getItem(DISMISSED_UPDATE_KEY).catch(() => null);
           const appliedVer = await AsyncStorage.getItem(APPLIED_UPDATE_KEY).catch(() => null);
 
-          // Only trigger if server version is strictly greater than current app
+          // 1. If this exact update version was ALREADY applied on this device, never pop up again!
+          if (appliedVer === serverUpdate.version && !isManual) {
+            return;
+          }
+
+          // 2. If already dismissed by user and not mandatory, skip on automatic checks
+          if (!serverUpdate.mandatory && dismissedVer === serverUpdate.version && !isManual) {
+            return;
+          }
+
+          // 3. Only trigger if server version is strictly greater than current base app
           const isNewer = isVersionGreater(serverUpdate.version, CURRENT_APP_VERSION);
 
           if (isNewer) {
-            // If not mandatory and already dismissed OR applied on this device, skip unless manual check
-            const alreadyActioned = dismissedVer === serverUpdate.version || appliedVer === serverUpdate.version;
-            if (!serverUpdate.mandatory && alreadyActioned && !isManual) {
-              return;
-            }
-
             setUpdateInfo(serverUpdate);
             setUpdateAvailable(true);
             if (isManual) setStatusMessage(`New update v${serverUpdate.version} is available!`);
