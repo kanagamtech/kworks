@@ -2,7 +2,7 @@
   "expo": {
     "name": "KwOrKs",
     "slug": "KwOrKs",
-    "version": "1.2.0-beta",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo-kanagam.png",
     "userInterfaceStyle": "automatic",
@@ -62,8 +62,8 @@
     ],
     "updates": {
       "url": "https://u.expo.dev/569c3d31-192e-426b-ab82-aa908ccd332f",
-      "checkAutomatically": "NEVER",
-      "fallbackToCacheTimeout": 0
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 30000
     },
     "runtimeVersion": {
       "policy": "appVersion"

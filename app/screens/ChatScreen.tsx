@@ -185,8 +185,11 @@ export default function ChatScreen({ onBack, user }: Props) {
       .then((res) => res.json())
       .then((res) => {
         if (res.success && Array.isArray(res.data)) {
+          const userEmail = (user?.email || '').toLowerCase().trim();
           const myGroups = res.data.filter((g: ChatGroup) =>
-            g.members?.some((m) => m.toLowerCase() === user?.email?.toLowerCase())
+            !userEmail ||
+            g.members?.some((m) => m.toLowerCase().trim() === userEmail) ||
+            g.creator?.toLowerCase().trim() === userEmail
           );
           setGroups(myGroups);
         }
@@ -195,10 +198,10 @@ export default function ChatScreen({ onBack, user }: Props) {
   };
 
   useEffect(() => {
-    if (user?.email) {
-      fetchGroups();
-    }
-  }, [user, activeSegment]);
+    fetchGroups();
+    const interval = setInterval(fetchGroups, 3000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   // 3. Message polling & In-App Notification Trigger
   useEffect(() => {
@@ -565,10 +568,15 @@ export default function ChatScreen({ onBack, user }: Props) {
     }
 
     setIsCreatingGroup(true);
+    const creatorEmail = (user?.email || 'employee@kworks.com').toLowerCase().trim();
+    const allMembers = Array.from(
+      new Set([...selectedMembers.map((m) => m.toLowerCase().trim()), creatorEmail])
+    );
+
     const groupPayload = {
       name: newGroupName.trim(),
-      members: [...selectedMembers, user!.email],
-      creator: user!.email,
+      members: allMembers,
+      creator: creatorEmail,
     };
 
     fetch(`${API_BASE}/api/chat/groups`, {
@@ -579,11 +587,18 @@ export default function ChatScreen({ onBack, user }: Props) {
       .then((res) => res.json())
       .then((res) => {
         setIsCreatingGroup(false);
-        if (res.success) {
+        if (res.success && res.data) {
+          const newGroup = res.data;
           Alert.alert('Success', `Group "${newGroupName}" created!`);
           setNewGroupName('');
           setSelectedMembers([]);
           setShowCreateGroupModal(false);
+          setActiveSegment('groups');
+          setGroups((prev) => {
+            const exists = prev.some((g) => g.id === newGroup.id);
+            return exists ? prev : [newGroup, ...prev];
+          });
+          setSelectedGroup(newGroup);
           fetchGroups();
         }
       })
