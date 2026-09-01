@@ -103,6 +103,7 @@ export function useAppUpdate() {
     try {
       if (updateInfo?.version) {
         await AsyncStorage.setItem(APPLIED_UPDATE_KEY, updateInfo.version).catch(() => {});
+        await AsyncStorage.setItem(DISMISSED_UPDATE_KEY, updateInfo.version).catch(() => {});
       }
 
       // If standalone production app has expo-updates enabled and configured
@@ -129,12 +130,10 @@ export function useAppUpdate() {
   }, [updateInfo]);
 
   const dismissUpdate = useCallback(() => {
-    if (!updateInfo?.mandatory) {
-      if (updateInfo?.version) {
-        AsyncStorage.setItem(DISMISSED_UPDATE_KEY, updateInfo.version).catch(() => {});
-      }
-      setUpdateAvailable(false);
+    if (updateInfo?.version) {
+      AsyncStorage.setItem(DISMISSED_UPDATE_KEY, updateInfo.version).catch(() => {});
     }
+    setUpdateAvailable(false);
   }, [updateInfo]);
 
   useEffect(() => {

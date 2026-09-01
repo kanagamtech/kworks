@@ -200,6 +200,29 @@ export const ManagementPage: React.FC = () => {
     }
   };
 
+  const handleResetAppUpdate = async () => {
+    setIsPublishingUpdate(true);
+    setUpdateStatusMsg('⏳ Resetting update broadcast to baseline v1.0.0...');
+    try {
+      const res = await api.publishAppUpdate({
+        version: '1.0.0',
+        title: 'KwOrKs Production Baseline',
+        notes: 'Production baseline - all devices unlocked',
+        mandatory: false,
+        apkUrl: '',
+      });
+      if (res) {
+        setAppUpdate(res);
+        setUpdateStatusMsg('✅ Broadcast reset to baseline v1.0.0! All popup loops stopped on user devices.');
+        setTimeout(() => setUpdateStatusMsg(''), 6000);
+      }
+    } catch {
+      setUpdateStatusMsg('❌ Failed to reset broadcast.');
+    } finally {
+      setIsPublishingUpdate(false);
+    }
+  };
+
   useEffect(() => {
     if (!role) return;
     loadAllData();
@@ -595,7 +618,7 @@ export const ManagementPage: React.FC = () => {
           { id: 'users', label: 'ROLES & ACCESS', stat: `${mgmtUsers.length} active` },
           { id: 'onboarding', label: 'EMPLOYEE ONBOARDING', stat: `${employees.length} onboarded` },
           { id: 'attendance', label: 'ATTENDANCE', stat: `${attendance.length} logged` },
-          { id: 'food', label: 'FOOD COUNT', stat: `${foodCounts.length} days` },
+          { id: 'food', label: 'FOOD COUNT', stat: `${foodCounts.length}` },
           { id: 'leaves', label: 'LEAVE APPROVAL', stat: `${Object.keys(leaves).length} requests` },
           { id: 'notices', label: 'ANNOUNCEMENTS', stat: `${notices.length} published` },
           { id: 'polls', label: 'POLLS', stat: `${polls.length} active` },
@@ -1999,7 +2022,7 @@ export const ManagementPage: React.FC = () => {
 
           // Handler: Export CSV
           const handleExportCSV = () => {
-            const headers = ['Employee Name', 'EMP ID', 'Email', 'Company', 'Department', 'Date', 'Present', 'Breakfast', 'Morning Snacks', 'Lunch', 'Evening Snacks'];
+            const headers = ['Employee Name', 'EMP ID', 'Email', 'Company', 'Department', 'Date', 'Present', 'Lunch', 'Evening Snacks'];
             const rows = [headers.join(',')];
             filteredRoster.forEach((r) => {
               rows.push([
@@ -2010,8 +2033,6 @@ export const ManagementPage: React.FC = () => {
                 `"${r.department || ''}"`,
                 `"${selectedDate}"`,
                 r.isPresent ? 'YES' : 'NO',
-                r.meals?.breakfast ? 'YES' : 'NO',
-                r.meals?.morningSnacks ? 'YES' : 'NO',
                 r.meals?.lunch ? 'YES' : 'NO',
                 r.meals?.eveningSnacks ? 'YES' : 'NO',
               ].join(','));
@@ -2075,25 +2096,21 @@ export const ManagementPage: React.FC = () => {
 
               {/* KPI HEADCOUNT SUMMARY CARDS */}
               <div style={styles.chipsRow}>
-                <div style={{ ...styles.chip, backgroundColor: 'rgba(215,171,106,0.15)', borderColor: '#D7AB6A' }}>
-                  <div style={{ ...styles.chipValue, color: '#D7AB6A' }}>🥪 {breakfastTotal}</div>
-                  <div style={styles.chipLabel}>Breakfast Orders</div>
-                </div>
-                <div style={{ ...styles.chip, backgroundColor: 'rgba(2,136,209,0.12)', borderColor: '#0288D1' }}>
-                  <div style={{ ...styles.chipValue, color: '#0288D1' }}>☕ {morningSnacksTotal}</div>
-                  <div style={styles.chipLabel}>Morning Snacks</div>
-                </div>
-                <div style={{ ...styles.chip, backgroundColor: 'rgba(46,139,87,0.15)', borderColor: '#2E8B57' }}>
+                <div style={{ ...styles.chip, backgroundColor: 'rgba(46,139,87,0.15)', borderColor: '#2E8B57', minWidth: '130px' }}>
                   <div style={{ ...styles.chipValue, color: '#2E8B57' }}>🍱 {lunchTotal}</div>
                   <div style={styles.chipLabel}>Lunch Orders</div>
                 </div>
-                <div style={{ ...styles.chip, backgroundColor: 'rgba(230,81,0,0.12)', borderColor: '#E65100' }}>
+                <div style={{ ...styles.chip, backgroundColor: 'rgba(230,81,0,0.12)', borderColor: '#E65100', minWidth: '130px' }}>
                   <div style={{ ...styles.chipValue, color: '#E65100' }}>🧃 {eveningSnacksTotal}</div>
                   <div style={styles.chipLabel}>Evening Snacks</div>
                 </div>
-                <div style={{ ...styles.chip, backgroundColor: '#F7EFE2' }}>
+                <div style={{ ...styles.chip, backgroundColor: '#F7EFE2', minWidth: '150px' }}>
                   <div style={{ ...styles.chipValue, color: '#2B1022' }}>👥 {dateFoodRecords.length} / {employees.length}</div>
                   <div style={styles.chipLabel}>Participating Employees</div>
+                </div>
+                <div style={{ ...styles.chip, backgroundColor: 'rgba(215,171,106,0.18)', borderColor: '#D7AB6A', minWidth: '150px' }}>
+                  <div style={{ ...styles.chipValue, color: '#7A4F1D' }}>🍽️ {lunchTotal + eveningSnacksTotal}</div>
+                  <div style={styles.chipLabel}>Total Meals Distributed</div>
                 </div>
               </div>
 
@@ -2228,48 +2245,6 @@ export const ManagementPage: React.FC = () => {
 
                         {/* Interactive Meal Toggles */}
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                          {/* Breakfast */}
-                          <button
-                            onClick={() => handleToggleMeal(emp.email, 'breakfast', !!meals.breakfast)}
-                            style={{
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              border: meals.breakfast ? '1.5px solid #D7AB6A' : '1px dashed #ccc',
-                              backgroundColor: meals.breakfast ? 'rgba(215,171,106,0.22)' : 'transparent',
-                              color: meals.breakfast ? '#2B1022' : '#888',
-                              fontWeight: meals.breakfast ? 800 : 500,
-                              fontSize: '12px',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                            }}
-                          >
-                            <span>🥪 Breakfast</span>
-                            <span>{meals.breakfast ? '✅' : '⚪'}</span>
-                          </button>
-
-                          {/* Morning Snacks */}
-                          <button
-                            onClick={() => handleToggleMeal(emp.email, 'morningSnacks', !!meals.morningSnacks)}
-                            style={{
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              border: meals.morningSnacks ? '1.5px solid #0288D1' : '1px dashed #ccc',
-                              backgroundColor: meals.morningSnacks ? 'rgba(2,136,209,0.15)' : 'transparent',
-                              color: meals.morningSnacks ? '#0288D1' : '#888',
-                              fontWeight: meals.morningSnacks ? 800 : 500,
-                              fontSize: '12px',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                            }}
-                          >
-                            <span>☕ Morning</span>
-                            <span>{meals.morningSnacks ? '✅' : '⚪'}</span>
-                          </button>
-
                           {/* Lunch */}
                           <button
                             onClick={() => handleToggleMeal(emp.email, 'lunch', !!meals.lunch)}
@@ -2649,6 +2624,25 @@ export const ManagementPage: React.FC = () => {
                     }}
                   >
                     {isPublishingUpdate ? '⏳ Broadcasting to User Phones...' : '🚀 Broadcast Code Update to All User Phones'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleResetAppUpdate}
+                    disabled={isPublishingUpdate}
+                    style={{
+                      ...styles.btnPrimary,
+                      backgroundColor: '#8B0000',
+                      color: '#FFFFFF',
+                      border: '1.5px solid #FF6B6B',
+                      padding: '12px',
+                      fontSize: '13px',
+                      fontWeight: 800,
+                      marginTop: '10px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    🛑 Stop Broadcast &amp; Reset to v1.0.0 (Stop All Popup Loops)
                   </button>
 
                   {updateStatusMsg && (

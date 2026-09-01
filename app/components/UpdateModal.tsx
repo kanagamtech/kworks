@@ -121,11 +121,9 @@ export default function UpdateModal({
               </Pressable>
             ) : null}
 
-            {!updateInfo.mandatory && (
-              <Pressable style={styles.dismissBtn} onPress={onDismiss}>
-                <Text style={styles.dismissBtnText}>Remind Me Later</Text>
-              </Pressable>
-            )}
+            <Pressable style={styles.dismissBtn} onPress={onDismiss}>
+              <Text style={styles.dismissBtnText}>✕ Dismiss &amp; Continue to App</Text>
+            </Pressable>
           </View>
         </View>
       </View>
