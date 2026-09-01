@@ -318,13 +318,14 @@ const server = http.createServer(async (req, res) => {
         if (req.method === 'GET') {
           return protectedRoute(async () => {
             const update = db.getAppUpdate() || {};
+            // Enforce baseline v1.0.0 to permanently eliminate client popup loop on older APKs
             return sendJSON(res, 200, {
               success: true,
               data: {
                 ...update,
-                version: '1.2.0-beta',
-                title: 'KwOrKs v1.20-Beta',
-                notes: 'WhatsApp chat with 1.10hr delete/edit, group improvements, and Accounts updates.',
+                version: '1.0.0',
+                title: 'KwOrKs Up to Date',
+                notes: 'All systems operational.',
                 mandatory: false,
               },
             });
