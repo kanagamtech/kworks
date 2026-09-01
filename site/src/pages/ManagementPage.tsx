@@ -9,7 +9,7 @@ const SITE_CREDS: Record<string, { email: string; pass: string }> = {
   manager: { email: 'manager@kworks.com', pass: 'Manager@2026!' },
   hr: { email: 'hr@kworks.com', pass: 'HR@2026!' },
   it: { email: 'itsupport@kworks.com', pass: 'ITSupport@2026!' },
-  finance: { email: 'finance@kworks.com', pass: 'Finance@2026!' },
+  finance: { email: 'accounts@kworks.com', pass: 'Accounts@2026!' },
 };
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -18,7 +18,7 @@ const ROLE_LABELS: Record<Role, string> = {
   manager: 'Manager',
   hr: 'HR Executive',
   it: 'IT Support',
-  finance: 'Finance Manager',
+  finance: 'Accounts Manager',
 };
 
 const ROLE_COLORS: Record<Role, { bg: string; text: string; border: string }> = {
@@ -36,7 +36,7 @@ const ROLE_DESCRIPTIONS: Record<Role, string> = {
   manager: 'General management: employee onboarding, attendance, leaves, claims, notices & role assignment',
   hr: 'Human Resources: attendance logs & export, meal planning, leave approvals & notices',
   it: 'Technical support: IT helpdesk tickets, OTA updates broadcast & announcements',
-  finance: 'Financial approvals: reimbursement claims, cash advances & meal headcounts',
+  finance: 'Accounts approvals: reimbursement claims, cash advances & meal headcounts',
 };
 
 const ROLE_PERMISSIONS: Record<Role, string[]> = {
@@ -2433,19 +2433,19 @@ export const ManagementPage: React.FC = () => {
             
             {role === 'manager' && (
               <div style={{ backgroundColor: 'rgba(215,171,106,0.1)', border: '1px solid #D7AB6A', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', fontSize: '13px', color: '#9C7B4E' }}>
-                💡 You are logged in as <strong>Executive Manager</strong>. You have authority to Approve/Reject Stage 1 claims. Approved claims automatically route to the Finance Team.
+                💡 You are logged in as <strong>Executive Manager</strong>. You have authority to Approve/Reject Stage 1 claims. Approved claims automatically route to the Accounts Team.
               </div>
             )}
             
             {role === 'finance' && (
               <div style={{ backgroundColor: 'rgba(215,171,106,0.1)', border: '1px solid #D7AB6A', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', fontSize: '13px', color: '#9C7B4E' }}>
-                💡 You are logged in as <strong>Finance Manager</strong>. You have authority to disburse funds for Stage 2 claims that have been pre-approved by Managers.
+                💡 You are logged in as <strong>Accounts Manager</strong>. You have authority to disburse funds for Stage 2 claims that have been pre-approved by Managers.
               </div>
             )}
 
             {role !== 'manager' && role !== 'finance' && (
               <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(215,171,106,0.2)', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', fontSize: '13px', color: '#9C7B4E' }}>
-                🔒 Read-Only Mode. Only Managers and Finance Team can approve or reject financial requests.
+                🔒 Read-Only Mode. Only Managers and Accounts Team can approve or reject financial requests.
               </div>
             )}
 
@@ -2473,7 +2473,7 @@ export const ManagementPage: React.FC = () => {
                             Manager: {c.status.manager.toUpperCase()}
                           </span>
                           <span style={{ fontSize: '11px', fontWeight: 800, padding: '4px 8px', borderRadius: '4px', backgroundColor: c.status.finance === 'approved' ? 'rgba(46,139,87,0.1)' : c.status.finance === 'rejected' ? 'rgba(224,80,80,0.1)' : 'rgba(0,0,0,0.05)', color: c.status.finance === 'approved' ? '#2E8B57' : c.status.finance === 'rejected' ? '#E05050' : '#9C7B4E' }}>
-                            Finance: {c.status.finance.toUpperCase()}
+                            Accounts: {c.status.finance.toUpperCase()}
                           </span>
                         </div>
                       </div>
@@ -2497,7 +2497,7 @@ export const ManagementPage: React.FC = () => {
                             onClick={() => handleUpdateClaim(c.id, 'manager', 'approved')}
                             style={{ flex: 1, backgroundColor: '#2E8B57', color: '#FFFFFF', border: 'none', borderRadius: '6px', padding: '8px', fontWeight: 800, cursor: 'pointer', fontSize: '12px' }}
                           >
-                            Approve (Send to Finance)
+                            Approve (Send to Accounts)
                           </button>
                           <button
                             onClick={() => handleUpdateClaim(c.id, 'manager', 'rejected')}

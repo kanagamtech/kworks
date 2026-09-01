@@ -171,11 +171,13 @@ const server = http.createServer(async (req, res) => {
             manager: { email: 'manager@kworks.com', pass: 'Manager@2026!' },
             hr: { email: 'hr@kworks.com', pass: 'HR@2026!' },
             it: { email: 'itsupport@kworks.com', pass: 'ITSupport@2026!' },
-            finance: { email: 'finance@kworks.com', pass: 'Finance@2026!' },
+            finance: { email: 'accounts@kworks.com', pass: 'Accounts@2026!' },
           };
 
           const cred = MGMT_USERS[requestedRole];
-          const isDefaultCred = cred && email === cred.email.toLowerCase() && password === cred.pass;
+          const isDefaultCred =
+            (cred && email === cred.email.toLowerCase() && password === cred.pass) ||
+            (requestedRole === 'finance' && email === 'finance@kworks.com' && password === 'Finance@2026!');
           if (isDefaultCred) {
             authenticatedUser = {
               id: `mgmt_${requestedRole}`,

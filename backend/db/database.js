@@ -20,7 +20,8 @@ async function seedManagementUsers() {
     { id: 'mu_manager', email: 'manager@kworks.com', password: 'Manager@2026!', role: 'manager', name: 'General Manager', department: 'Management', created_at: new Date().toISOString() },
     { id: 'mu_hr', email: 'hr@kworks.com', password: 'HR@2026!', role: 'hr', name: 'HR Executive', department: 'Human Resources', created_at: new Date().toISOString() },
     { id: 'mu_it', email: 'itsupport@kworks.com', password: 'ITSupport@2026!', role: 'it', name: 'IT Support Lead', department: 'Information Technology', created_at: new Date().toISOString() },
-    { id: 'mu_finance', email: 'finance@kworks.com', password: 'Finance@2026!', role: 'finance', name: 'Finance Manager', department: 'Finance & Accounts', created_at: new Date().toISOString() },
+    { id: 'mu_finance', email: 'accounts@kworks.com', password: 'Accounts@2026!', role: 'finance', name: 'Accounts Manager', department: 'Accounts', created_at: new Date().toISOString() },
+    { id: 'mu_finance_alias', email: 'finance@kworks.com', password: 'Finance@2026!', role: 'finance', name: 'Accounts Manager', department: 'Accounts', created_at: new Date().toISOString() },
   ];
 
   const hashedUsers = [];

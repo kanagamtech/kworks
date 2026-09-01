@@ -50,7 +50,7 @@ const SITE_CREDS: Record<Role, { email: string; pass: string }> = {
   manager: { email: 'manager@kworks.com', pass: 'manager123' },
   hr: { email: 'hr@kworks.com', pass: 'hr123' },
   it: { email: 'itsupport@kworks.com', pass: 'itsupport123' },
-  finance: { email: 'finance@kworks.com', pass: 'finance123' },
+  finance: { email: 'accounts@kworks.com', pass: 'accounts123' },
 };
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -58,7 +58,7 @@ const ROLE_LABELS: Record<Role, string> = {
   manager: 'Manager',
   hr: 'HR Executive',
   it: 'IT Support',
-  finance: 'Finance Manager',
+  finance: 'Accounts Manager',
 };
 
 export default function ManagementScreen({ onBack }: Props) {

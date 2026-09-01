@@ -48,7 +48,7 @@ export type Ticket = {
 export const SUPPORT_DEPARTMENTS = {
   management: { label: 'Management', email: 'management@kworks.com', tagline: 'Facing a work-related issue?' },
   hr: { label: 'HR', email: 'hr@kworks.com', tagline: 'Facing an HR-related issue?' },
-  finance: { label: 'FINANCE', email: 'finance@kworks.com', tagline: 'Facing a finance-related issue?' },
+  finance: { label: 'ACCOUNTS', email: 'accounts@kworks.com', tagline: 'Facing an accounts-related issue?' },
   it: { label: 'IT', email: 'it-support@kworks.com', tagline: 'Facing a technical issue?' },
 } as const;
 
@@ -80,7 +80,7 @@ export default function ITSupportScreen({ onBack, user, department = 'it' }: Pro
 
   const userEmail = user?.email ?? 'guest@kworks.com';
   const dept = SUPPORT_DEPARTMENTS[department];
-  const deptName = dept.label === 'FINANCE' ? 'Finance' : dept.label === 'IT' ? 'IT' : dept.label;
+  const deptName = dept.label === 'ACCOUNTS' ? 'Accounts' : dept.label === 'IT' ? 'IT' : dept.label;
   const to = dept.email;
 
   useEffect(() => {

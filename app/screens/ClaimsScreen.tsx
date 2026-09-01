@@ -379,7 +379,7 @@ export default function ClaimsScreen({ onBack, user }: Props) {
                         <View style={styles.flowLine} />
                         <View style={styles.flowStep}>
                           <Text style={[styles.flowStepDot, fStatus === 'approved' ? styles.dotApproved : fStatus === 'rejected' ? styles.dotRejected : styles.dotPending]} />
-                          <Text style={styles.flowLabel}>Stage 2: Finance ({fStatus})</Text>
+                          <Text style={styles.flowLabel}>Stage 2: Accounts ({fStatus})</Text>
                         </View>
                       </View>
 
@@ -391,7 +391,7 @@ export default function ClaimsScreen({ onBack, user }: Props) {
                             : isRejected
                             ? 'REJECTED'
                             : mStatus === 'approved'
-                            ? 'PENDING FINANCE RELEASE'
+                            ? 'PENDING ACCOUNTS RELEASE'
                             : 'PENDING MANAGER APPROVAL'}
                         </Text>
                       </View>

@@ -6,7 +6,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   manager: 'Manager',
   hr: 'HR Executive',
   it: 'IT Support',
-  finance: 'Finance Manager',
+  finance: 'Accounts Manager',
 };
 
 export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
@@ -15,7 +15,7 @@ export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   manager: 'Employee, attendance, leave, claims, and team management',
   hr: 'Attendance tracking, food count, leave approval',
   it: 'IT support tickets, app updates',
-  finance: 'Claims approval, announcements, polls',
+  finance: 'Accounts & claims approval, announcements, polls',
 };
 
 export const ALL_TABS = [

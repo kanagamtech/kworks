@@ -17,7 +17,7 @@ const BRAND = {
 const DEPTS: { id: SupportDept; label: string }[] = [
   { id: 'management', label: 'MANAGEMENT' },
   { id: 'hr', label: 'HR' },
-  { id: 'finance', label: 'FINANCE' },
+  { id: 'finance', label: 'ACCOUNTS' },
   { id: 'it', label: 'IT' },
 ];
 

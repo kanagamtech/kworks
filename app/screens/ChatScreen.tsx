@@ -99,7 +99,7 @@ type ChatMessage = {
 };
 
 const PRESET_DOCUMENTS = [
-  { name: 'KwOrKs_Q3_Financial_Summary.pdf', size: '1.4 MB', type: 'PDF' },
+  { name: 'KwOrKs_Q3_Accounts_Summary.pdf', size: '1.4 MB', type: 'PDF' },
   { name: 'Engineering_Architecture_Design.pdf', size: '2.8 MB', type: 'PDF' },
   { name: 'Corporate_Attendance_Guidelines.docx', size: '480 KB', type: 'DOCX' },
   { name: 'Employee_Benefits_Policy_2026.pdf', size: '320 KB', type: 'PDF' },
