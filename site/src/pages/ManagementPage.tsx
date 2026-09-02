@@ -2096,101 +2096,211 @@ export const ManagementPage: React.FC = () => {
               )}
 
               {/* ────────────────────────────────────────────────────────── */}
-              {/* VIEW 4: RAW CHECK-IN LOGS                                 */}
+              {/* VIEW 4: RAW CHECK-IN LOGS (GROUPED BY DAY)                */}
               {/* ────────────────────────────────────────────────────────── */}
-              {attendanceViewMode === 'logs' && (
-                <div style={{ marginTop: '20px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '14px 0 12px 0' }}>
-                    <div style={styles.listTitle}>RAW CHECK-IN ATTENDANCE RECORDS</div>
-                    {attendance.length > 0 && (
-                      <button
-                        style={{
-                          backgroundColor: 'rgba(224, 80, 80, 0.15)',
-                          color: '#E05050',
-                          border: '1.5px solid #E05050',
-                          borderRadius: '6px',
-                          padding: '6px 12px',
-                          fontSize: '11px',
-                          fontWeight: 800,
-                          cursor: 'pointer',
-                          letterSpacing: '0.5px',
-                          transition: 'all 0.2s',
-                        }}
-                        onClick={handleClearAllAttendance}
-                        onMouseOver={(e) => {
-                          e.currentTarget.style.backgroundColor = '#E05050';
-                          e.currentTarget.style.color = '#FFFFFF';
-                        }}
-                        onMouseOut={(e) => {
-                          e.currentTarget.style.backgroundColor = 'rgba(224, 80, 80, 0.15)';
-                          e.currentTarget.style.color = '#E05050';
-                        }}
-                      >
-                        CLEAR ALL RECORDS
-                      </button>
-                    )}
-                  </div>
+              {attendanceViewMode === 'logs' && (() => {
+                const groupedByDay: Record<string, any[]> = {};
+                attendance.forEach((r) => {
+                  const d = r.date || 'Unknown Date';
+                  if (!groupedByDay[d]) groupedByDay[d] = [];
+                  groupedByDay[d].push(r);
+                });
 
-                  {attendance.length === 0 ? (
-                    <p style={styles.emptyText}>No attendance marked yet.</p>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {attendance.map((r, i) => {
-                        const mapsUrl = r.mapsUrl || (r.latitude && r.longitude ? `https://www.google.com/maps?q=${r.latitude},${r.longitude}` : null);
-                        return (
-                          <div key={r.id || i} style={styles.listRow}>
-                            <div style={styles.dot} />
-                            <div style={{ flex: 1 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                <span style={styles.empName}>{r.name || r.user}</span>
-                                <span style={{ fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(46,139,87,0.15)', color: '#2E8B57', padding: '2px 6px', borderRadius: '4px' }}>
-                                  In: {r.time}
-                                </span>
-                                {r.punchOutTime && (
-                                  <span style={{ fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(215,171,106,0.2)', color: '#9C7B4E', padding: '2px 6px', borderRadius: '4px' }}>
-                                    Out: {r.punchOutTime}
-                                  </span>
-                                )}
-                                {r.duration && (
-                                  <span style={{ fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(75,29,63,0.1)', color: '#4B1D3F', padding: '2px 6px', borderRadius: '4px' }}>
-                                    ⏱️ {r.duration}
-                                  </span>
-                                )}
-                                {!r.punchOutTime && (
-                                  <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#2E8B57' }}>
-                                    ✓ ACTIVE SHIFT
-                                  </span>
-                                )}
-                              </div>
-                              <div style={styles.empSub}>
-                                📍 {r.location || 'Location unknown'} &middot; 📅 {r.date}
-                                {r.gpsFormatted && <span style={{ color: '#9C7B4E', marginLeft: '6px', fontWeight: 700 }}>({r.gpsFormatted})</span>}
-                                {mapsUrl && (
-                                  <a
-                                    href={mapsUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    style={{ marginLeft: '8px', color: '#D7AB6A', fontWeight: 800, textDecoration: 'underline', fontSize: '11.5px' }}
+                const sortedDays = Object.keys(groupedByDay).sort((a, b) => {
+                  return new Date(b).getTime() - new Date(a).getTime();
+                });
+
+                const formatDayHeader = (dateStr: string) => {
+                  try {
+                    const parsed = new Date(dateStr + 'T00:00:00');
+                    if (!isNaN(parsed.getTime())) {
+                      return parsed.toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      });
+                    }
+                  } catch {}
+                  return dateStr;
+                };
+
+                return (
+                  <div style={{ marginTop: '20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '14px 0 16px 0', flexWrap: 'wrap', gap: '10px' }}>
+                      <div>
+                        <div style={styles.listTitle}>RAW CHECK-IN ATTENDANCE RECORDS (GROUPED BY DAY)</div>
+                        <div style={{ fontSize: '12px', color: '#9C7B4E', fontWeight: 600 }}>
+                          Showing check-ins grouped by day across {sortedDays.length} active day{sortedDays.length === 1 ? '' : 's'} ({attendance.length} total records)
+                        </div>
+                      </div>
+                      {attendance.length > 0 && (
+                        <button
+                          style={{
+                            backgroundColor: 'rgba(224, 80, 80, 0.15)',
+                            color: '#E05050',
+                            border: '1.5px solid #E05050',
+                            borderRadius: '6px',
+                            padding: '6px 12px',
+                            fontSize: '11px',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            letterSpacing: '0.5px',
+                            transition: 'all 0.2s',
+                          }}
+                          onClick={handleClearAllAttendance}
+                        >
+                          CLEAR ALL RECORDS
+                        </button>
+                      )}
+                    </div>
+
+                    {sortedDays.length === 0 ? (
+                      <p style={styles.emptyText}>No attendance marked yet.</p>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        {sortedDays.map((dayKey) => {
+                          const dayLogs = groupedByDay[dayKey];
+                          const activeShiftsCount = dayLogs.filter((r) => !r.punchOutTime).length;
+
+                          return (
+                            <div
+                              key={dayKey}
+                              style={{
+                                backgroundColor: '#FFFFFF',
+                                border: '1.5px solid #D7AB6A',
+                                borderRadius: '12px',
+                                overflow: 'hidden',
+                                boxShadow: '0 2px 8px rgba(215,171,106,0.1)',
+                              }}
+                            >
+                              {/* Day Header */}
+                              <div
+                                style={{
+                                  backgroundColor: '#F7EFE2',
+                                  borderBottom: '1.5px solid #D7AB6A',
+                                  padding: '12px 18px',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  flexWrap: 'wrap',
+                                  gap: '10px',
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                  <span style={{ fontSize: '18px' }}>📅</span>
+                                  <div>
+                                    <span style={{ fontSize: '14.5px', fontWeight: 800, color: '#2B1022' }}>
+                                      {formatDayHeader(dayKey)}
+                                    </span>
+                                    <span style={{ fontSize: '11.5px', color: '#9C7B4E', marginLeft: '8px', fontWeight: 600 }}>
+                                      ({dayKey})
+                                    </span>
+                                  </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                  <span
+                                    style={{
+                                      backgroundColor: '#2E8B57',
+                                      color: '#FFFFFF',
+                                      padding: '3px 10px',
+                                      borderRadius: '12px',
+                                      fontSize: '11.5px',
+                                      fontWeight: 800,
+                                    }}
                                   >
-                                    🗺️ View GPS on Map
-                                  </a>
-                                )}
+                                    🟢 {dayLogs.length} Check-In{dayLogs.length === 1 ? '' : 's'}
+                                  </span>
+                                  {activeShiftsCount > 0 && (
+                                    <span
+                                      style={{
+                                        backgroundColor: 'rgba(75,29,63,0.1)',
+                                        color: '#4B1D3F',
+                                        padding: '3px 10px',
+                                        borderRadius: '12px',
+                                        fontSize: '11.5px',
+                                        fontWeight: 800,
+                                        border: '1px solid rgba(75,29,63,0.2)',
+                                      }}
+                                    >
+                                      ⏱️ {activeShiftsCount} Active Shift{activeShiftsCount === 1 ? '' : 's'}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Day Logs List */}
+                              <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {dayLogs.map((r, i) => {
+                                  const mapsUrl = r.mapsUrl || (r.latitude && r.longitude ? `https://www.google.com/maps?q=${r.latitude},${r.longitude}` : null);
+                                  return (
+                                    <div
+                                      key={r.id || `${dayKey}_${i}`}
+                                      style={{
+                                        ...styles.listRow,
+                                        backgroundColor: i % 2 === 0 ? '#FFFFFF' : '#FAF6F0',
+                                        padding: '10px 14px',
+                                        borderRadius: '8px',
+                                        border: '1px solid rgba(215,171,106,0.25)',
+                                      }}
+                                    >
+                                      <div style={styles.dot} />
+                                      <div style={{ flex: 1 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                          <span style={styles.empName}>{r.name || r.user}</span>
+                                          <span style={{ fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(46,139,87,0.15)', color: '#2E8B57', padding: '2px 6px', borderRadius: '4px' }}>
+                                            In: {r.time}
+                                          </span>
+                                          {r.punchOutTime && (
+                                            <span style={{ fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(215,171,106,0.2)', color: '#9C7B4E', padding: '2px 6px', borderRadius: '4px' }}>
+                                              Out: {r.punchOutTime}
+                                            </span>
+                                          )}
+                                          {r.duration && (
+                                            <span style={{ fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(75,29,63,0.1)', color: '#4B1D3F', padding: '2px 6px', borderRadius: '4px' }}>
+                                              ⏱️ {r.duration}
+                                            </span>
+                                          )}
+                                          {!r.punchOutTime && (
+                                            <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#2E8B57' }}>
+                                              ✓ ACTIVE SHIFT
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div style={styles.empSub}>
+                                          📍 {r.location || 'Location unknown'}
+                                          {r.gpsFormatted && <span style={{ color: '#9C7B4E', marginLeft: '6px', fontWeight: 700 }}>({r.gpsFormatted})</span>}
+                                          {mapsUrl && (
+                                            <a
+                                              href={mapsUrl}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              style={{ marginLeft: '8px', color: '#D7AB6A', fontWeight: 800, textDecoration: 'underline', fontSize: '11.5px' }}
+                                            >
+                                              🗺️ View GPS on Map
+                                            </a>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <button
+                                        style={styles.delBtn}
+                                        onClick={() => handleDeleteAttendance(r.id || `att_${i}`)}
+                                        title="Delete Record"
+                                      >
+                                        &times;
+                                      </button>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
-                            <button
-                              style={styles.delBtn}
-                              onClick={() => handleDeleteAttendance(r.id || `att_${i}`)}
-                              title="Delete Record"
-                            >
-                              &times;
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           );
         })()}
