@@ -7,9 +7,9 @@ const raw = fs.readFileSync(appJsonPath, 'utf8');
 const parsed = JSON.parse(raw);
 
 const branches = ['preview', 'production'];
-const runtimes = ['1.2.0-beta', '1.1.0-beta', '1.0.1', '1.0.0'];
+const runtimes = ['1.3.0', '1.3.0-fix', '1.2.0-beta', '1.1.0-beta', '1.0.1', '1.0.0'];
 
-console.log('🚀 Starting Multi-Branch, Multi-Runtime EAS OTA Publisher (v1.20-beta)...\n');
+console.log('🚀 Starting Multi-Branch, Multi-Runtime EAS OTA Publisher (v1.3.0-fix)...\n');
 
 for (const branch of branches) {
   for (const runtime of runtimes) {
@@ -21,7 +21,7 @@ for (const branch of branches) {
     fs.writeFileSync(appJsonPath, JSON.stringify(parsed, null, 2));
 
     try {
-      const cmd = `npx eas update --branch ${branch} --message "KwOrKs Fix: Food Count, Chrome Keyboard & No-Loop" --non-interactive`;
+      const cmd = `npx eas update --branch ${branch} --message "KwOrKs v1.3.0: Notification Center Overhaul, In-Modal Food Count Selection, Back Gesture Fix, Instant Attendance" --non-interactive`;
       const out = execSync(cmd, {
         cwd: path.join(__dirname, '../app'),
         encoding: 'utf8',
@@ -39,7 +39,7 @@ for (const branch of branches) {
   }
 }
 
-// Restore app.json to 1.2.0-beta
-parsed.expo.version = '1.2.0-beta';
+// Restore app.json to 1.3.0
+parsed.expo.version = '1.3.0';
 fs.writeFileSync(appJsonPath, JSON.stringify(parsed, null, 2));
-console.log('\n✅ All EAS branches & runtimes updated successfully! Restored app.json to 1.2.0-beta.');
+console.log('\n✅ All EAS branches & runtimes updated successfully! Restored app.json to 1.3.0.');

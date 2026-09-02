@@ -272,6 +272,30 @@ class Database {
     return item;
   }
 
+  punchOutAttendance(userEmail, date, punchOutTime, duration) {
+    if (!this.data.attendance) return null;
+    
+    // Find the record for this user and date
+    const idx = this.data.attendance.findIndex(
+      (a) => a.user?.toLowerCase() === userEmail?.toLowerCase() && a.date === date
+    );
+    
+    if (idx === -1) return null;
+
+    this.data.attendance[idx].punchOutTime = punchOutTime;
+    this.data.attendance[idx].duration = duration;
+    this.save();
+
+    if (getIsConnected()) {
+      Models.Attendance.updateOne(
+        { id: this.data.attendance[idx].id },
+        { punchOutTime, duration }
+      ).catch(() => {});
+    }
+    
+    return this.data.attendance[idx];
+  }
+
   clearAttendance() {
     this.data.attendance = [];
     this.save();

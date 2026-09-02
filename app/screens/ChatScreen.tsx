@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  BackHandler,
   Easing,
   FlatList,
   Image,
@@ -165,6 +166,79 @@ export default function ChatScreen({ onBack, user }: Props) {
 
   const flatListRef = useRef<FlatList | null>(null);
   const lastMsgCountRef = useRef<number>(0);
+
+  // ── Android Back Button & Swipe Gesture Handler ───────────────────────────
+  useEffect(() => {
+    const onBackPress = () => {
+      // 1. Close photo preview modal
+      if (selectedPhotoPreview) {
+        setSelectedPhotoPreview(null);
+        return true;
+      }
+      // 2. Close active reaction picker
+      if (activeReactionMsg) {
+        setActiveReactionMsg(null);
+        return true;
+      }
+      // 3. Close edit mode
+      if (editingMessage) {
+        setEditingMessage(null);
+        return true;
+      }
+      // 4. Close reply preview
+      if (replyingTo) {
+        setReplyingTo(null);
+        return true;
+      }
+      // 5. Close attachment / doc pickers
+      if (showAttachMenu) {
+        setShowAttachMenu(false);
+        return true;
+      }
+      if (showDocPicker) {
+        setShowDocPicker(false);
+        return true;
+      }
+      // 6. Close group modals
+      if (showCreateGroupModal) {
+        setShowCreateGroupModal(false);
+        return true;
+      }
+      if (showGroupInfoModal) {
+        setShowGroupInfoModal(false);
+        return true;
+      }
+      if (showAddMemberModal) {
+        setShowAddMemberModal(false);
+        return true;
+      }
+      // 7. If inside a conversation or group, return to chat list
+      if (selectedContact !== null || selectedGroup !== null) {
+        setSelectedContact(null);
+        setSelectedGroup(null);
+        return true;
+      }
+      // 8. On main chat list, return to Home Screen
+      onBack();
+      return true;
+    };
+
+    const backSub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => backSub.remove();
+  }, [
+    selectedPhotoPreview,
+    activeReactionMsg,
+    editingMessage,
+    replyingTo,
+    showAttachMenu,
+    showDocPicker,
+    showCreateGroupModal,
+    showGroupInfoModal,
+    showAddMemberModal,
+    selectedContact,
+    selectedGroup,
+    onBack,
+  ]);
 
   // 1. Load contacts (employees)
   useEffect(() => {

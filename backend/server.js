@@ -318,14 +318,13 @@ const server = http.createServer(async (req, res) => {
         if (req.method === 'GET') {
           return protectedRoute(async () => {
             const update = db.getAppUpdate() || {};
-            // Enforce baseline v1.0.0 to permanently stop the update modal popup loop on all phones
             return sendJSON(res, 200, {
               success: true,
               data: {
                 ...update,
-                version: '1.0.0',
-                title: 'KwOrKs Up to Date',
-                notes: 'All systems operational.',
+                version: update.version || '1.3.0',
+                title: update.title || 'KwOrKs v1.3.0 Update Available',
+                notes: update.notes || 'Food Count, Realtime Chat, Attendance & Notification Center',
                 mandatory: false,
               },
             });
@@ -415,6 +414,20 @@ const server = http.createServer(async (req, res) => {
             }
             const record = db.addAttendance(body);
             return sendJSON(res, 200, { success: true, data: record });
+          }, 'attendance:create')(req, res);
+        }
+        if (req.method === 'PUT' && pathname === '/api/attendance/punchout') {
+          return protectedRoute(async () => {
+            const body = await parseBody(req);
+            if (!body.date || !body.userEmail || !body.punchOutTime || !body.duration) {
+              return sendJSON(res, 400, { success: false, message: 'Missing required punch out data.' });
+            }
+            const updated = db.punchOutAttendance(body.userEmail, body.date, body.punchOutTime, body.duration);
+            if (updated) {
+              return sendJSON(res, 200, { success: true, data: updated });
+            } else {
+              return sendJSON(res, 404, { success: false, message: 'Attendance record not found for today.' });
+            }
           }, 'attendance:create')(req, res);
         }
         if (req.method === 'DELETE') {

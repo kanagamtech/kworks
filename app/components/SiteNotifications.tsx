@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Text from './AppText';
+import { API_BASE } from '../utils/config';
 
 const useNativeDriver = Platform.OS !== 'web';
 
-const MGMT_KEY = 'kworks_management_notices';
-const HR_KEY = 'kworks_hr_notices';
-const POLLS_KEY = 'kworks_polls';
 const SEEN_KEY = 'kworks_notif_seen';
 
 type Popup = {
@@ -28,6 +27,7 @@ export default function SiteNotifications({ onOpen }: Props) {
   const showing = useRef(false);
   const mounted = useRef(true);
   const autoDismiss = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const seenIdsRef = useRef<string[]>([]);
 
   useEffect(() => {
     mounted.current = true;
@@ -72,7 +72,7 @@ export default function SiteNotifications({ onOpen }: Props) {
       }),
       Animated.timing(opacity, { toValue: 1, duration: 320, useNativeDriver }),
     ]).start();
-    autoDismiss.current = setTimeout(hide, 5000);
+    autoDismiss.current = setTimeout(hide, 5500);
   };
 
   const openPopup = () => {
@@ -81,68 +81,59 @@ export default function SiteNotifications({ onOpen }: Props) {
   };
 
   useEffect(() => {
-    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
-    let seen: string[] = [];
-    try {
-      seen = JSON.parse(window.localStorage.getItem(SEEN_KEY) || '[]');
-    } catch {
-      seen = [];
-    }
+    let intervalId: any;
 
-    const read = (key: string): any[] => {
+    const init = async () => {
+      // 1. Load seen IDs from AsyncStorage
       try {
-        const raw = window.localStorage.getItem(key);
-        return raw ? JSON.parse(raw) : [];
-      } catch {
-        return [];
-      }
-    };
-
-    const collect = (): Popup[] => {
-      const items: Popup[] = [];
-      const teamOf = (n: any) => (n.team && n.team !== 'ALL' ? n.team : 'All');
-      read(MGMT_KEY).forEach((n) =>
-        items.push({ id: 'm' + n.id, kind: 'Announcement · ' + teamOf(n), title: n.title, body: n.body })
-      );
-      read(HR_KEY).forEach((n) =>
-        items.push({ id: 'h' + n.id, kind: 'Announcement · ' + teamOf(n), title: n.title, body: n.body })
-      );
-      read(POLLS_KEY).forEach((p) =>
-        items.push({
-          id: 'p' + p.id,
-          kind: 'New Poll',
-          title: p.title,
-          body: 'A new poll is waiting for your vote in Notifications.',
-        })
-      );
-      return items;
-    };
-
-    const markSeen = (id: string) => {
-      seen.push(id);
-      try {
-        window.localStorage.setItem(SEEN_KEY, JSON.stringify(seen.slice(-300)));
+        const rawSeen = await AsyncStorage.getItem(SEEN_KEY);
+        if (rawSeen) {
+          seenIdsRef.current = JSON.parse(rawSeen);
+        }
       } catch {}
+
+      // 2. Scan for new notices/polls from backend
+      const scan = async () => {
+        if (!mounted.current) return;
+        try {
+          const res = await fetch(`${API_BASE}/api/notices`);
+          const data = await res.json();
+          if (data.success && Array.isArray(data.data)) {
+            const newNotices: Popup[] = [];
+            data.data.forEach((n: any) => {
+              const id = `notice_${n.id}`;
+              if (!seenIdsRef.current.includes(id)) {
+                newNotices.push({
+                  id,
+                  kind: n.team && n.team !== 'ALL' ? `Announcement · ${n.team}` : 'Company Notice',
+                  title: n.title || 'New Announcement',
+                  body: n.body || '',
+                });
+                seenIdsRef.current.push(id);
+              }
+            });
+
+            if (newNotices.length > 0) {
+              AsyncStorage.setItem(SEEN_KEY, JSON.stringify(seenIdsRef.current.slice(-300))).catch(() => {});
+              newNotices.forEach((it) => queue.current.push(it));
+              if (!showing.current) {
+                showNext();
+              }
+            }
+          }
+        } catch {}
+      };
+
+      // Run initial check after 2 seconds, then periodically
+      setTimeout(scan, 2000);
+      intervalId = setInterval(scan, 12000);
     };
 
-    collect().forEach((it) => markSeen(it.id));
+    init();
 
-    const scan = () => {
-      collect().forEach((it) => {
-        if (seen.includes(it.id)) return;
-        markSeen(it.id);
-        queue.current.push(it);
-      });
-      if (queue.current.length) showNext();
-    };
-
-    const iv = setInterval(scan, 5000);
-    window.addEventListener('storage', scan);
     return () => {
-      clearInterval(iv);
-      window.removeEventListener('storage', scan);
+      if (intervalId) clearInterval(intervalId);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!popup) return null;
@@ -170,7 +161,7 @@ export default function SiteNotifications({ onOpen }: Props) {
 const styles = StyleSheet.create({
   toast: {
     position: 'absolute',
-    top: 54,
+    top: Platform.OS === 'ios' ? 52 : 44,
     left: 14,
     right: 14,
     maxWidth: 460,
@@ -178,12 +169,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1.5,
     borderColor: '#D7AB6A',
-    backgroundColor: 'rgba(26,9,22,0.97)',
+    backgroundColor: 'rgba(32, 12, 28, 0.98)',
     shadowColor: '#000',
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
+    shadowOpacity: 0.5,
+    shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
+    elevation: 10,
+    zIndex: 9999,
   },
   toastPress: {
     flexDirection: 'row',

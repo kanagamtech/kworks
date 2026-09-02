@@ -27,6 +27,8 @@ const AttendanceSchema = new mongoose.Schema({
   gpsFormatted: { type: String },
   mapsUrl: { type: String },
   photoUri: { type: String },
+  punchOutTime: { type: String },
+  duration: { type: String },
   created_at: { type: String, default: () => new Date().toISOString() },
 });
 

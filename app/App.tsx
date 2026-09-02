@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Animated, Easing, Image, Platform, StyleSheet, View } from 'react-native';
+import { Animated, BackHandler, Easing, Image, Platform, StyleSheet, ToastAndroid, View } from 'react-native';
 import Text from './components/AppText';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SplashScreen from 'expo-splash-screen';
@@ -246,6 +246,43 @@ function AppInner() {
     return () => clearInterval(interval);
   }, [user, screen]);
 
+  // ── Global Android Back Button & Swipe Gesture Handler ────────────────────
+  const lastBackPressRef = useRef<number>(0);
+
+  useEffect(() => {
+    const onBackPress = () => {
+      // If currently on any sub-screen, go back to home screen (or previous screen)
+      if (screen === 'foodcount') {
+        setScreen('attendance');
+        return true; // Prevent default app exit
+      }
+
+      if (screen !== 'home') {
+        if (screen === 'login' && !user) {
+          // On login screen with no user, allow normal back/exit
+          return false;
+        }
+        setScreen('home');
+        return true; // Handled back navigation internally
+      }
+
+      // If already on the home screen, require double tap within 2 seconds to exit
+      const now = Date.now();
+      if (now - lastBackPressRef.current < 2000) {
+        return false; // Exit app on second tap
+      }
+
+      lastBackPressRef.current = now;
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('Press back again to exit KwOrKs', ToastAndroid.SHORT);
+      }
+      return true; // Intercept first back press
+    };
+
+    const backSub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => backSub.remove();
+  }, [screen, user]);
+
   const handleLogout = () => {
     setUser(null);
     AsyncStorage.removeItem(USER_STORAGE_KEY).catch(() => {});
@@ -338,7 +375,7 @@ function AppInner() {
 
   if (screen === 'notifications') {
     return wrapScreen(
-      <NotificationScreen onBack={() => setScreen('home')} />
+      <NotificationScreen onBack={() => setScreen('home')} user={user} />
     );
   }
 

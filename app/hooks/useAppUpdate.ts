@@ -13,7 +13,7 @@ export interface AppUpdateInfo {
   updateId: string;
 }
 
-const CURRENT_APP_VERSION = '1.2.0-beta';
+const CURRENT_APP_VERSION = '1.3.0';
 // Key to remember which EAS bundle we last silently applied
 const SILENT_APPLIED_KEY = 'kworks_eas_silent_applied';
 
@@ -63,22 +63,25 @@ export function useAppUpdate() {
   // Manual check (triggered by user tapping "Check for Updates" in settings)
   const checkForUpdate = useCallback(async () => {
     setIsChecking(true);
-    setStatusMessage('Checking for updates...');
+    setStatusMessage('Checking for EAS updates...');
 
     try {
       if (!__DEV__ && Updates.isEnabled) {
         const result = await Updates.checkForUpdateAsync();
         if (result.isAvailable) {
-          setStatusMessage('Downloading update...');
+          setStatusMessage('Downloading & applying v1.3.0 update...');
           setIsDownloading(true);
           await Updates.fetchUpdateAsync();
-          setStatusMessage('Reloading with update...');
+          setStatusMessage('Reloading with latest v1.3.0 bundle...');
           await Updates.reloadAsync();
           return;
+        } else {
+          setStatusMessage(`KwOrKs is up to date (v${CURRENT_APP_VERSION}) ✓`);
         }
+      } else {
+        setStatusMessage(`Dev / Web Mode · Latest code active (v${CURRENT_APP_VERSION})`);
       }
-      setStatusMessage(`App is up to date (${CURRENT_APP_VERSION})`);
-      setTimeout(() => setStatusMessage(''), 4000);
+      setTimeout(() => setStatusMessage(''), 4500);
     } catch {
       setStatusMessage('Could not check for updates. Check your internet connection.');
       setTimeout(() => setStatusMessage(''), 5000);

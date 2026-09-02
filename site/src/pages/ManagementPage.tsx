@@ -75,6 +75,9 @@ export const ManagementPage: React.FC = () => {
   const [polls, setPolls] = useState<any[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
   const [claims, setClaims] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+  const [liveToast, setLiveToast] = useState<{ title: string; body: string; time: string; type?: string } | null>(null);
   const [appUpdate, setAppUpdate] = useState<any>(null);
 
   // App Update Broadcast Form State
@@ -141,7 +144,7 @@ export const ManagementPage: React.FC = () => {
   const [isAddingUser, setIsAddingUser] = useState(false);
 
   const loadAllData = async () => {
-    const [emps, atts, foods, lvs, nots, pls, tks, clms, cmps, upd, mUsers] = await Promise.all([
+    const [emps, atts, foods, lvs, nots, pls, tks, clms, cmps, upd, mUsers, notifs] = await Promise.all([
       api.getEmployees(),
       api.getAttendance(),
       api.getFoodCounts(),
@@ -153,6 +156,7 @@ export const ManagementPage: React.FC = () => {
       api.getCompanies(),
       api.getAppUpdate(),
       api.getManagementUsers(),
+      api.getNotifications(),
     ]);
     setEmployees(emps);
     setAttendance(atts);
@@ -162,6 +166,23 @@ export const ManagementPage: React.FC = () => {
     setPolls(pls);
     setTickets(tks);
     setClaims(clms);
+    if (Array.isArray(notifs)) {
+      setNotifications((prev) => {
+        if (prev.length > 0 && notifs.length > prev.length) {
+          const newest = notifs[0];
+          if (newest && (newest.type === 'shift_punch_out' || newest.type === 'attendance_check_in')) {
+            setLiveToast({
+              title: newest.title || 'Shift Update',
+              body: newest.body || '',
+              time: newest.time || new Date().toLocaleTimeString(),
+              type: newest.type,
+            });
+            setTimeout(() => setLiveToast(null), 8000);
+          }
+        }
+        return notifs;
+      });
+    }
     if (upd) setAppUpdate(upd);
     if (Array.isArray(mUsers)) setMgmtUsers(mUsers);
     if (Array.isArray(cmps) && cmps.length > 0) {
@@ -605,12 +626,111 @@ export const ManagementPage: React.FC = () => {
             <p style={styles.siteSub}>Live monitoring of attendance, food count, leaves, announcements, and employee onboarding</p>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', position: 'relative' }}>
+          {/* Notification Bell Dropdown */}
+          <button
+            style={{
+              ...styles.btnGhost,
+              backgroundColor: showNotifDropdown ? '#D7AB6A' : 'rgba(215,171,106,0.15)',
+              color: showNotifDropdown ? '#FFFFFF' : '#2B1022',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontWeight: 800,
+            }}
+            onClick={() => setShowNotifDropdown(!showNotifDropdown)}
+          >
+            <span>🔔</span>
+            <span>Alerts ({notifications.length})</span>
+          </button>
+
+          {showNotifDropdown && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '48px',
+                right: '180px',
+                width: '360px',
+                maxHeight: '420px',
+                overflowY: 'auto',
+                backgroundColor: '#FFFFFF',
+                borderRadius: '12px',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+                border: '1.5px solid #D7AB6A',
+                zIndex: 9999,
+                padding: '14px',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', borderBottom: '1px solid #E5D4B8', paddingBottom: '6px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 800, color: '#2B1022' }}>🔔 LIVE SHIFT & ATTENDANCE ALERTS</span>
+                <span style={{ fontSize: '11px', color: '#9C7B4E', fontWeight: 700 }}>{notifications.length} recent</span>
+              </div>
+              {notifications.length === 0 ? (
+                <p style={{ fontSize: '12px', color: '#999', textAlign: 'center', padding: '16px 0' }}>No notifications received yet.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {notifications.slice(0, 15).map((n, i) => (
+                    <div
+                      key={n.id || i}
+                      style={{
+                        backgroundColor: n.type === 'shift_punch_out' ? 'rgba(215,171,106,0.12)' : 'rgba(46,139,87,0.08)',
+                        borderLeft: `4px solid ${n.type === 'shift_punch_out' ? '#D7AB6A' : '#2E8B57'}`,
+                        padding: '8px 10px',
+                        borderRadius: '6px',
+                        fontSize: '11.5px',
+                      }}
+                    >
+                      <div style={{ fontWeight: 800, color: '#2B1022', display: 'flex', justifyContent: 'space-between' }}>
+                        <span>{n.title}</span>
+                        <span style={{ fontSize: '10px', color: '#9C7B4E' }}>{n.time || ''}</span>
+                      </div>
+                      <div style={{ color: '#444', marginTop: '3px', whiteSpace: 'pre-line', fontSize: '11px' }}>
+                        {n.body}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div style={styles.roleBadge}>{ROLE_LABELS[role]} &middot; {SITE_CREDS[role]?.email || ''}</div>
           <button style={styles.btnGhost} onClick={loadAllData}>Refresh</button>
           <button style={styles.btnGhost} onClick={handleLogout}>Logout</button>
         </div>
       </header>
+
+      {/* Floating Live Punch-Out & Check-In Notification Toast */}
+      {liveToast && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            backgroundColor: '#2B1022',
+            color: '#FFFFFF',
+            border: '2px solid #D7AB6A',
+            borderRadius: '12px',
+            padding: '16px 20px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
+            zIndex: 99999,
+            maxWidth: '380px',
+            animation: 'fadeIn 0.3s ease-in-out',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <span style={{ fontSize: '13px', fontWeight: 800, color: '#D7AB6A' }}>{liveToast.title}</span>
+            <button
+              onClick={() => setLiveToast(null)}
+              style={{ background: 'none', border: 'none', color: '#FFFFFF', cursor: 'pointer', fontSize: '14px', fontWeight: 800 }}
+            >
+              ✕
+            </button>
+          </div>
+          <div style={{ fontSize: '12px', color: '#E8C98F', whiteSpace: 'pre-line' }}>{liveToast.body}</div>
+          <div style={{ fontSize: '10px', color: '#9C7B4E', marginTop: '6px', textAlign: 'right' }}>⏰ {liveToast.time}</div>
+        </div>
+      )}
 
       {/* Top Dashboard Navigation Keys Bar (Role-Filtered) */}
       <div style={styles.keysBar}>
@@ -1143,9 +1263,9 @@ export const ManagementPage: React.FC = () => {
             ? attendance.filter((r) => r.user?.toLowerCase() === selectedEmpEmail.toLowerCase())
             : [];
 
-          // CSV Export for Not Absent
-          const handleExportNotAbsent = () => {
-            const headers = ['EMP ID', 'Name', 'Email', 'Company', 'Department', 'Role', 'Date', 'Time', 'Location', 'GPS'];
+          // CSV Export for Present Employees
+          const handleExportPresent = () => {
+            const headers = ['EMP ID', 'Name', 'Email', 'Company', 'Department', 'Role', 'Date', 'Check-In Time', 'Punch-Out Time', 'Duration', 'Location', 'GPS'];
             const rows = filteredPresent.map((p) => [
               p.id || '',
               `"${(p.name || '').replace(/"/g, '""')}"`,
@@ -1155,6 +1275,8 @@ export const ManagementPage: React.FC = () => {
               p.role || '',
               p.checkIn?.date || selectedDate,
               p.checkIn?.time || '',
+              p.checkIn?.punchOutTime || '',
+              p.checkIn?.duration || '',
               `"${(p.checkIn?.location || '').replace(/"/g, '""')}"`,
               p.checkIn?.gpsFormatted || '',
             ]);
@@ -1163,7 +1285,7 @@ export const ManagementPage: React.FC = () => {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `kworks_not_absent_${selectedDate}.csv`;
+            a.download = `kworks_present_${selectedDate}.csv`;
             a.click();
             URL.revokeObjectURL(url);
           };
@@ -1174,7 +1296,7 @@ export const ManagementPage: React.FC = () => {
                 <h2 style={styles.panelTitle}>Attendance — Common &amp; Individual Analytics</h2>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <button
-                    onClick={handleExportNotAbsent}
+                    onClick={handleExportPresent}
                     style={{
                       backgroundColor: '#2E8B57',
                       color: '#FFFFFF',
@@ -1189,7 +1311,7 @@ export const ManagementPage: React.FC = () => {
                       gap: '6px',
                     }}
                   >
-                    📥 Export Not Absent List (CSV)
+                    📥 Export Present List (CSV)
                   </button>
                 </div>
               </div>
@@ -1198,7 +1320,7 @@ export const ManagementPage: React.FC = () => {
               <div style={styles.chipsRow}>
                 <div style={styles.chip}>
                   <div style={{ ...styles.chipValue, color: '#2E8B57' }}>{presentEmployees.length}</div>
-                  <div style={styles.chipLabel}>🟢 Not Absent (Present)</div>
+                  <div style={styles.chipLabel}>🟢 Present Today</div>
                 </div>
                 <div style={styles.chip}>
                   <div style={{ ...styles.chipValue, color: '#E05050' }}>{absentEmployees.length}</div>
@@ -1344,7 +1466,7 @@ export const ManagementPage: React.FC = () => {
                   }}
                 >
                   <span>🟢</span>
-                  <span>NOT ABSENT / PRESENT ({filteredPresent.length})</span>
+                  <span>PRESENT ({filteredPresent.length})</span>
                 </button>
 
                 <button
@@ -1416,13 +1538,13 @@ export const ManagementPage: React.FC = () => {
               </div>
 
               {/* ────────────────────────────────────────────────────────── */}
-              {/* VIEW 1: NOT ABSENT (PRESENT) LIST (DEFAULT)               */}
+              {/* VIEW 1: PRESENT LIST (DEFAULT)                             */}
               {/* ────────────────────────────────────────────────────────── */}
               {attendanceViewMode === 'present' && (
                 <div style={{ marginTop: '20px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                     <div style={{ fontSize: '15px', fontWeight: 800, color: '#2E8B57' }}>
-                      ✅ NOT ABSENT EMPLOYEES — {filteredPresent.length} PRESENT ON {selectedDate}
+                      ✅ PRESENT EMPLOYEES — {filteredPresent.length} PRESENT ON {selectedDate}
                     </div>
                     <span style={{ fontSize: '12px', color: '#9C7B4E', fontWeight: 600 }}>
                       Attendance Rate: {employees.length > 0 ? Math.round((presentEmployees.length / employees.length) * 100) : 0}%
@@ -1516,7 +1638,7 @@ export const ManagementPage: React.FC = () => {
 
                             {/* Check-In Details */}
                             <div style={{ minWidth: '200px', flex: '1 1 200px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                 <span
                                   style={{
                                     fontSize: '12px',
@@ -1527,11 +1649,41 @@ export const ManagementPage: React.FC = () => {
                                     borderRadius: '4px',
                                   }}
                                 >
-                                  ⏰ {rec.time || 'Checked In'}
+                                  In: {rec.time || 'Checked In'}
                                 </span>
-                                <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#2E8B57' }}>
-                                  ✓ NOT ABSENT
-                                </span>
+                                {rec.punchOutTime && (
+                                  <span
+                                    style={{
+                                      fontSize: '12px',
+                                      fontWeight: 800,
+                                      backgroundColor: 'rgba(215,171,106,0.15)',
+                                      color: '#9C7B4E',
+                                      padding: '2px 8px',
+                                      borderRadius: '4px',
+                                    }}
+                                  >
+                                    Out: {rec.punchOutTime}
+                                  </span>
+                                )}
+                                {rec.duration && (
+                                  <span
+                                    style={{
+                                      fontSize: '12px',
+                                      fontWeight: 800,
+                                      backgroundColor: 'rgba(75,29,63,0.1)',
+                                      color: '#4B1D3F',
+                                      padding: '2px 8px',
+                                      borderRadius: '4px',
+                                    }}
+                                  >
+                                    ⏱️ {rec.duration}
+                                  </span>
+                                )}
+                                {!rec.punchOutTime && (
+                                  <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#2E8B57' }}>
+                                    ✓ ACTIVE SHIFT
+                                  </span>
+                                )}
                               </div>
                               <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
                                 📍 {rec.location || 'Location verified'}
@@ -1539,29 +1691,55 @@ export const ManagementPage: React.FC = () => {
                               </div>
                             </div>
 
-                            {/* Map Action Button */}
-                            {mapsUrl && (
-                              <a
-                                href={mapsUrl}
-                                target="_blank"
-                                rel="noreferrer"
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                              {/* View Shift Details Action */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedEmpEmail(emp.email);
+                                  setAttendanceViewMode('analytics');
+                                }}
                                 style={{
-                                  backgroundColor: '#F7EFE2',
-                                  color: '#2B1022',
-                                  border: '1px solid #D7AB6A',
+                                  backgroundColor: '#4B1D3F',
+                                  color: '#FFFFFF',
+                                  border: 'none',
                                   borderRadius: '6px',
-                                  padding: '6px 10px',
+                                  padding: '6px 12px',
                                   fontSize: '11px',
                                   fontWeight: 800,
-                                  textDecoration: 'none',
+                                  cursor: 'pointer',
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   gap: '4px',
                                 }}
                               >
-                                🗺️ View GPS
-                              </a>
-                            )}
+                                👤 Shift Card
+                              </button>
+
+                              {/* Map Action Button */}
+                              {mapsUrl && (
+                                <a
+                                  href={mapsUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{
+                                    backgroundColor: '#F7EFE2',
+                                    color: '#2B1022',
+                                    border: '1px solid #D7AB6A',
+                                    borderRadius: '6px',
+                                    padding: '6px 10px',
+                                    fontSize: '11px',
+                                    fontWeight: 800,
+                                    textDecoration: 'none',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                  }}
+                                >
+                                  🗺️ View GPS
+                                </a>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
@@ -1716,12 +1894,12 @@ export const ManagementPage: React.FC = () => {
                   </div>
 
                   {/* Individual Tracker */}
-                  <div style={{ ...styles.colCard, flex: '1 1 450px' }}>
-                    <h3 style={styles.cardTitle}>👤 INDIVIDUAL EMPLOYEE ATTENDANCE CARD</h3>
+                  <div style={{ ...styles.colCard, flex: '1 1 500px' }}>
+                    <h3 style={styles.cardTitle}>👤 INDIVIDUAL EMPLOYEE ATTENDANCE &amp; SHIFT CARD</h3>
                     
-                    <label style={styles.fieldLabel}>SELECT EMPLOYEE</label>
+                    <label style={styles.fieldLabel}>CHOOSE EMPLOYEE TO VIEW LOGIN &amp; LOGOUT TIMES</label>
                     <select
-                      style={{ ...styles.fieldInput, cursor: 'pointer' }}
+                      style={{ ...styles.fieldInput, cursor: 'pointer', marginBottom: '12px' }}
                       value={selectedEmpEmail}
                       onChange={(e) => setSelectedEmpEmail(e.target.value)}
                     >
@@ -1735,44 +1913,125 @@ export const ManagementPage: React.FC = () => {
 
                     {selectedEmpEmail ? (() => {
                       const emp = employees.find((e) => e.email?.toLowerCase() === selectedEmpEmail.toLowerCase());
+                      const empTodayRec = attendance.find(
+                        (r) => r.user?.toLowerCase() === selectedEmpEmail.toLowerCase() && r.date === selectedDate
+                      );
+                      const latestRec = employeeRecs[0];
+
                       return (
-                        <div style={{ marginTop: '20px', border: '1px solid #D7AB6A', borderRadius: '12px', padding: '16px', backgroundColor: '#FFFFFF' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-                            <div style={{ ...styles.thumbWrap, width: '48px', height: '48px', borderRadius: '24px' }}>
+                        <div style={{ marginTop: '10px', border: '1.5px solid #D7AB6A', borderRadius: '12px', padding: '18px', backgroundColor: '#FFFFFF' }}>
+                          {/* Profile Header */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
+                            <div style={{ ...styles.thumbWrap, width: '52px', height: '52px', borderRadius: '26px', border: '2px solid #D7AB6A' }}>
                               {emp?.photo ? (
                                 <img src={emp.photo} alt="" style={styles.thumbImg} />
                               ) : (
-                                <div style={{ ...styles.dot, width: '14px', height: '14px', borderRadius: '7px' }} />
+                                <div style={{ fontSize: '16px', fontWeight: 800, color: '#D7AB6A' }}>
+                                  {(emp?.name || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                                </div>
                               )}
                             </div>
-                            <div>
-                              <div style={{ fontSize: '15px', fontWeight: 800, color: '#2B1022' }}>{emp?.name || 'Unknown Employee'}</div>
-                              <div style={{ fontSize: '12px', color: '#9C7B4E' }}>{emp?.role} &middot; {emp?.department}</div>
-                            </div>
-                          </div>
-
-                          <div style={{ display: 'flex', gap: '10px', marginBottom: '14px' }}>
-                            <div style={{ flex: 1, backgroundColor: '#F7EFE2', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
-                              <div style={{ fontSize: '16px', fontWeight: 800, color: '#2B1022' }}>{employeeRecs.length}</div>
-                              <div style={{ fontSize: '10px', color: '#9C7B4E', marginTop: '2px' }}>Total Logs</div>
-                            </div>
-                            <div style={{ flex: 1, backgroundColor: '#F7EFE2', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
-                              <div style={{ fontSize: '14px', fontWeight: 800, color: '#2E8B57' }}>
-                                {employeeRecs.length > 0 ? 'Active' : 'No Logs'}
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: '16px', fontWeight: 800, color: '#2B1022' }}>{emp?.name || 'Employee Profile'}</div>
+                              <div style={{ fontSize: '12px', color: '#9C7B4E' }}>{emp?.email} &middot; {emp?.id}</div>
+                              <div style={{ fontSize: '11.5px', color: '#666', marginTop: '2px' }}>
+                                🏢 {emp?.company || 'kanagamtech'} &middot; {emp?.department || 'General'} &middot; {emp?.role || 'Staff'}
                               </div>
-                              <div style={{ fontSize: '10px', color: '#9C7B4E', marginTop: '2px' }}>Status</div>
                             </div>
                           </div>
 
-                          <div style={{ fontSize: '12px', fontWeight: '800', color: '#9C7B4E', marginBottom: '6px' }}>INDIVIDUAL LOGS</div>
+                          {/* Login & Logout Today Banner */}
+                          <div style={{ backgroundColor: 'rgba(75,29,63,0.04)', border: '1px solid #E5D4B8', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
+                            <div style={{ fontSize: '12px', fontWeight: 800, color: '#4B1D3F', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span>📅 DATE: {selectedDate}</span>
+                              <span
+                                style={{
+                                  fontSize: '11px',
+                                  fontWeight: 800,
+                                  backgroundColor: empTodayRec ? (empTodayRec.punchOutTime ? 'rgba(215,171,106,0.2)' : 'rgba(46,139,87,0.2)') : 'rgba(224,80,80,0.15)',
+                                  color: empTodayRec ? (empTodayRec.punchOutTime ? '#9C7B4E' : '#2E8B57') : '#E05050',
+                                  padding: '3px 8px',
+                                  borderRadius: '4px',
+                                }}
+                              >
+                                {empTodayRec ? (empTodayRec.punchOutTime ? '🏁 SHIFT COMPLETED' : '🟢 ACTIVE SHIFT') : '❌ ABSENT ON THIS DATE'}
+                              </span>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', textAlign: 'center' }}>
+                              {/* Login Time */}
+                              <div style={{ backgroundColor: '#FFFFFF', borderRadius: '8px', padding: '10px', border: '1px solid rgba(46,139,87,0.3)' }}>
+                                <div style={{ fontSize: '10px', fontWeight: 800, color: '#2E8B57' }}>🟢 LOGIN (CHECK-IN)</div>
+                                <div style={{ fontSize: '14px', fontWeight: 800, color: '#2B1022', marginTop: '4px' }}>
+                                  {empTodayRec?.time || '—'}
+                                </div>
+                              </div>
+
+                              {/* Logout Time */}
+                              <div style={{ backgroundColor: '#FFFFFF', borderRadius: '8px', padding: '10px', border: '1px solid rgba(215,171,106,0.4)' }}>
+                                <div style={{ fontSize: '10px', fontWeight: 800, color: '#9C7B4E' }}>🚪 LOGOUT (PUNCH-OUT)</div>
+                                <div style={{ fontSize: '14px', fontWeight: 800, color: '#2B1022', marginTop: '4px' }}>
+                                  {empTodayRec?.punchOutTime || (empTodayRec ? 'In Progress' : '—')}
+                                </div>
+                              </div>
+
+                              {/* Total Working Time */}
+                              <div style={{ backgroundColor: '#FFFFFF', borderRadius: '8px', padding: '10px', border: '1px solid rgba(75,29,63,0.2)' }}>
+                                <div style={{ fontSize: '10px', fontWeight: 800, color: '#4B1D3F' }}>⏱️ TOTAL WORKING TIME</div>
+                                <div style={{ fontSize: '14px', fontWeight: 800, color: '#4B1D3F', marginTop: '4px' }}>
+                                  {empTodayRec?.duration || (empTodayRec ? (empTodayRec.punchOutTime ? 'Finished' : 'Active Counter') : '00h 00m')}
+                                </div>
+                              </div>
+                            </div>
+
+                            {empTodayRec?.location && (
+                              <div style={{ fontSize: '11px', color: '#666', marginTop: '10px' }}>
+                                📍 Location: {empTodayRec.location}
+                                {empTodayRec.gpsFormatted && <span style={{ color: '#9C7B4E', marginLeft: '6px' }}>({empTodayRec.gpsFormatted})</span>}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Historical Shift Log Table */}
+                          <div style={{ fontSize: '12px', fontWeight: '800', color: '#9C7B4E', marginBottom: '8px' }}>
+                            📋 ALL RECORDED SHIFTS &amp; ATTENDANCE HISTORY ({employeeRecs.length} total)
+                          </div>
                           {employeeRecs.length === 0 ? (
-                            <p style={{ color: '#9C7B4E', fontSize: '12px', fontStyle: 'italic' }}>No check-in logs registered for this employee yet.</p>
+                            <p style={{ color: '#9C7B4E', fontSize: '12px', fontStyle: 'italic', margin: '8px 0' }}>No check-in logs registered for this employee yet.</p>
                           ) : (
-                            <div style={{ maxHeight: '140px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                               {employeeRecs.map((rec, idx) => (
-                                <div key={idx} style={{ backgroundColor: 'rgba(75,29,63,0.03)', padding: '8px 10px', borderRadius: '6px', fontSize: '11.5px', border: '1px solid rgba(215,171,106,0.2)' }}>
-                                  <strong>{rec.date}</strong> &middot; {rec.time} <br />
-                                  <span style={{ color: '#9C7B4E' }}>📍 {rec.location || 'Location unknown'}</span>
+                                <div
+                                  key={rec.id || idx}
+                                  style={{
+                                    backgroundColor: 'rgba(75,29,63,0.03)',
+                                    padding: '10px 12px',
+                                    borderRadius: '8px',
+                                    fontSize: '11.5px',
+                                    border: '1px solid rgba(215,171,106,0.3)',
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', flexWrap: 'wrap', gap: '6px' }}>
+                                    <strong>📅 {rec.date}</strong>
+                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                      <span style={{ backgroundColor: 'rgba(46,139,87,0.15)', color: '#2E8B57', padding: '2px 6px', borderRadius: '4px', fontWeight: 800 }}>
+                                        In: {rec.time}
+                                      </span>
+                                      {rec.punchOutTime && (
+                                        <span style={{ backgroundColor: 'rgba(215,171,106,0.2)', color: '#9C7B4E', padding: '2px 6px', borderRadius: '4px', fontWeight: 800 }}>
+                                          Out: {rec.punchOutTime}
+                                        </span>
+                                      )}
+                                      {rec.duration && (
+                                        <span style={{ backgroundColor: 'rgba(75,29,63,0.1)', color: '#4B1D3F', padding: '2px 6px', borderRadius: '4px', fontWeight: 800 }}>
+                                          ⏱️ {rec.duration}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div style={{ color: '#666', fontSize: '11px' }}>
+                                    📍 {rec.location || 'Location unknown'}
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -1780,7 +2039,9 @@ export const ManagementPage: React.FC = () => {
                         </div>
                       );
                     })() : (
-                      <p style={{ ...styles.emptyText, textAlign: 'center', marginTop: '24px' }}>Select an employee from the dropdown list to see their detailed attendance history and card profile.</p>
+                      <p style={{ ...styles.emptyText, textAlign: 'center', marginTop: '24px' }}>
+                        Select an employee from the dropdown list above to view their exact Login (Check-in), Logout (Punch-out), and total shift working duration.
+                      </p>
                     )}
                   </div>
                 </div>
@@ -1832,9 +2093,29 @@ export const ManagementPage: React.FC = () => {
                           <div key={r.id || i} style={styles.listRow}>
                             <div style={styles.dot} />
                             <div style={{ flex: 1 }}>
-                              <div style={styles.empName}>{r.name || r.user} &middot; {r.time}</div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                <span style={styles.empName}>{r.name || r.user}</span>
+                                <span style={{ fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(46,139,87,0.15)', color: '#2E8B57', padding: '2px 6px', borderRadius: '4px' }}>
+                                  In: {r.time}
+                                </span>
+                                {r.punchOutTime && (
+                                  <span style={{ fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(215,171,106,0.2)', color: '#9C7B4E', padding: '2px 6px', borderRadius: '4px' }}>
+                                    Out: {r.punchOutTime}
+                                  </span>
+                                )}
+                                {r.duration && (
+                                  <span style={{ fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(75,29,63,0.1)', color: '#4B1D3F', padding: '2px 6px', borderRadius: '4px' }}>
+                                    ⏱️ {r.duration}
+                                  </span>
+                                )}
+                                {!r.punchOutTime && (
+                                  <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#2E8B57' }}>
+                                    ✓ ACTIVE SHIFT
+                                  </span>
+                                )}
+                              </div>
                               <div style={styles.empSub}>
-                                📍 {r.location || 'Location unknown'} &middot; {r.date}
+                                📍 {r.location || 'Location unknown'} &middot; 📅 {r.date}
                                 {r.gpsFormatted && <span style={{ color: '#9C7B4E', marginLeft: '6px', fontWeight: 700 }}>({r.gpsFormatted})</span>}
                                 {mapsUrl && (
                                   <a

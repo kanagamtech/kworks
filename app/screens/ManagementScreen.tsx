@@ -416,8 +416,28 @@ export default function ManagementScreen({ onBack }: Props) {
                   <View key={i} style={styles.listItemRow}>
                     <View style={[styles.itemDot, r.date === todayKey() && { backgroundColor: BRAND.success }]} />
                     <View style={styles.itemContent}>
-                      <Text style={styles.itemTitle}>{r.name || r.user}</Text>
-                      <Text style={styles.itemMeta}>{r.date} · {r.time} · {r.location || 'Unknown location'}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+                        <Text style={styles.itemTitle}>{r.name || r.user}</Text>
+                        <View style={{ flexDirection: 'row', gap: 6 }}>
+                          <Text style={{ fontSize: 11, fontWeight: '800', color: BRAND.success, backgroundColor: 'rgba(46,139,87,0.15)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                            In: {r.time}
+                          </Text>
+                          {r.punchOutTime ? (
+                            <Text style={{ fontSize: 11, fontWeight: '800', color: BRAND.primary, backgroundColor: 'rgba(215,171,106,0.2)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                              Out: {r.punchOutTime}
+                            </Text>
+                          ) : null}
+                          {r.duration ? (
+                            <Text style={{ fontSize: 11, fontWeight: '800', color: '#E8C98F', backgroundColor: 'rgba(232,201,143,0.15)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                              ⏱️ {r.duration}
+                            </Text>
+                          ) : null}
+                        </View>
+                      </View>
+                      <Text style={styles.itemMeta}>
+                        📅 {r.date} · 📍 {r.location || 'Unknown location'}
+                        {!r.punchOutTime && <Text style={{ color: BRAND.success, fontWeight: '700' }}> · ✓ Active Shift</Text>}
+                      </Text>
                     </View>
                   </View>
                 ))

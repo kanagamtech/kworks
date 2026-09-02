@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   AppState,
+  BackHandler,
   Image,
   Linking,
   Modal,
@@ -14,15 +15,13 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Text from '../components/AppText';
-import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
-import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import MorningBackground from '../components/MorningBackground';
 import { useResponsive } from '../hooks/useResponsive';
 import { getRealGPSLocation, type RealGPSData } from '../utils/locationName';
-import { saveAttendanceRecord, todayKey } from '../utils/records';
+import { saveAttendanceRecord, saveFoodCount, todayKey, type MealKey } from '../utils/records';
 import { API_BASE } from '../utils/config';
-import { verifyFaceMatch } from '../utils/faceRecognition';
 import { checkInternetConnection, isOnline, subscribeToNetworkChanges, type NetworkState } from '../utils/network';
 import type { UserProfile } from '../types';
 
@@ -50,10 +49,6 @@ type Props = {
 
 export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
   const { width } = useResponsive();
-  const [permission, requestPermission] = useCameraPermissions();
-  const cameraRef = useRef<CameraView | null>(null);
-  const [cameraReady, setCameraReady] = useState(false);
-  const [facing, setFacing] = useState<'front' | 'back'>('front');
 
   // Scanning & Biometric State
   const [progress, setProgress] = useState(0);
@@ -75,6 +70,51 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
   const [mismatchMsg, setMismatchMsg] = useState('');
   const [showPunchOutModal, setShowPunchOutModal] = useState(false);
   const [isPunchingOut, setIsPunchingOut] = useState(false);
+
+  // Food Count & Meal Options State
+  const [selectedMeals, setSelectedMeals] = useState<Record<MealKey, boolean>>({
+    breakfast: false,
+    morningSnacks: false,
+    lunch: true,
+    eveningSnacks: true,
+  });
+  const [foodSaving, setFoodSaving] = useState(false);
+  const [foodSubmitted, setFoodSubmitted] = useState(false);
+
+  const toggleMeal = (mealKey: MealKey) => {
+    setSelectedMeals((prev) => ({
+      ...prev,
+      [mealKey]: !prev[mealKey],
+    }));
+  };
+
+  const handleSaveMealSelection = async (skipAll: boolean = false) => {
+    setFoodSaving(true);
+    const mealsToSave = skipAll
+      ? { breakfast: false, morningSnacks: false, lunch: false, eveningSnacks: false }
+      : selectedMeals;
+
+    const payload = {
+      date: todayKey(),
+      user: user?.email ?? 'guest@kworks.com',
+      meals: mealsToSave,
+    };
+
+    try {
+      await saveFoodCount(payload);
+      fetch(`${API_BASE}/api/food`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }).catch(() => {});
+      setFoodSubmitted(true);
+    } catch {
+      // ignore
+    } finally {
+      setFoodSaving(false);
+      setShowFoodPopup(false);
+    }
+  };
 
   // GPS & Location Telemetry
   const [gpsData, setGpsData] = useState<RealGPSData | null>(null);
@@ -104,9 +144,6 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
 
   // ── 1. Fetch Registered Employees Database ─────────────────────────────────
   useEffect(() => {
-    if (permission && !permission.granted) {
-      requestPermission();
-    }
     fetch(`${API_BASE}/api/employees`)
       .then((res) => res.json())
       .then((res) => {
@@ -115,8 +152,7 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
         }
       })
       .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [permission]);
+  }, []);
 
   // ── 2. Check Existing Attendance for Today ──────────────────────────────────
   useEffect(() => {
@@ -275,7 +311,7 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
     return () => clearInterval(interval);
   }, [markedTimestamp, punchedOut]);
 
-  // ── 5. Direct Attendance Punch-In (Face ID Temporarily Disabled) ───────────
+  // ── 5. Direct Attendance Punch-In ───────────────────────────
   const handleMarkAttendance = async () => {
     if (done || scanning) return;
 
@@ -284,19 +320,15 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
     setStatus('Recording attendance & GPS telemetry...');
 
     try {
-      let capturedUri = user?.photoUri || '';
-      if (cameraReady && permission?.granted) {
-        try {
-          const photo = await cameraRef.current?.takePictureAsync({ quality: 0.6 });
-          if (photo?.uri) capturedUri = photo.uri;
-        } catch {}
-      }
+      const capturedUri = user?.photoUri || '';
+      
+      // Artificial delay for UI feedback
+      await new Promise(resolve => setTimeout(resolve, 800));
 
       setProgress(1.0);
       setStatus('Attendance marked successfully!');
       success(capturedUri);
     } catch {
-      // Fallback: still mark attendance even if camera fails
       setProgress(1.0);
       success(user?.photoUri || '');
     } finally {
@@ -343,6 +375,23 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(rec),
+    }).catch(() => {});
+
+    // Notify Management View of Check-in
+    fetch(`${API_BASE}/api/notifications`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: `🟢 Check-In: ${user?.name || 'Employee'}`,
+        body: `${user?.name || 'Employee'} (${user?.email || ''}) logged in at ${nowTime}.\nLocation: ${rec.location}`,
+        employeeName: user?.name || 'Employee',
+        employeeEmail: user?.email || '',
+        company: user?.company || 'kanagamtech',
+        department: user?.department || 'General',
+        type: 'attendance_check_in',
+        date: nowDate,
+        time: nowTime,
+      }),
     }).catch(() => {});
 
     // Save check-in timestamp for shift timer
@@ -392,6 +441,18 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
         }),
       }).catch(() => {});
 
+      // 3. Save Punch Out Time to Attendance Record
+      await fetch(`${API_BASE}/api/attendance/punchout`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: nowDate,
+          userEmail: userKey,
+          punchOutTime: nowTime,
+          duration: shiftTimerStr,
+        }),
+      }).catch(() => {});
+
       // Save punch out local state
       const punchOutObj = { time: nowTime, duration: shiftTimerStr };
       setPunchedOut(true);
@@ -407,21 +468,32 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
     setShowPunchOutModal(false);
   };
 
-  // ── 7. Handle App State (Pause preview on background) ───────────────────────
+  // ── Android Back Button & Swipe Gesture Handler ───────────────────────────
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state !== 'active') {
-        try {
-          cameraRef.current?.pausePreview();
-        } catch {}
-      } else {
-        try {
-          cameraRef.current?.resumePreview();
-        } catch {}
+    const onBackPress = () => {
+      // 1. Close punch out modal
+      if (showPunchOutModal) {
+        setShowPunchOutModal(false);
+        return true;
       }
-    });
-    return () => sub.remove();
-  }, []);
+      // 2. Close food popup modal
+      if (showFoodPopup) {
+        setShowFoodPopup(false);
+        return true;
+      }
+      // 3. Close mismatch modal
+      if (showMismatchModal) {
+        setShowMismatchModal(false);
+        return true;
+      }
+      // 4. Return to home dashboard
+      onDone();
+      return true;
+    };
+
+    const backSub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => backSub.remove();
+  }, [showPunchOutModal, showFoodPopup, showMismatchModal, onDone]);
 
   const openGoogleMaps = () => {
     if (gpsData?.mapsUrl) {
@@ -449,7 +521,6 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
     return `rgb(${redVal},${greenVal},${blueVal})`;
   })();
 
-  const readyToScan = cameraReady && permission?.granted;
   const locationLabel = (() => {
     if (locState === 'denied') return 'Location access denied by device';
     if (locState === 'error') return 'Location unavailable';
@@ -522,7 +593,7 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
             </View>
           </View>
 
-          {/* Biometric Camera Viewport / Punch Completed Card */}
+          {/* Profile Viewport / Punch Completed Card */}
           {punchedOut ? (
             <View style={styles.punchedOutCard}>
               <View style={styles.punchedOutIconWrap}>
@@ -553,30 +624,20 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
               </Pressable>
             </View>
           ) : (
-            <View style={[styles.cameraWrap, { width: size, height: size, borderRadius: size / 2 }]}>
-              <CameraView
-                ref={cameraRef}
-                style={StyleSheet.absoluteFill}
-                facing={facing}
-                active={!done}
-                onCameraReady={() => setCameraReady(true)}
-              />
-
-              {permission && !permission.granted && (
-                <View style={styles.permOverlay}>
-                  <Text style={styles.permText}>Camera access is required for biometric face verification.</Text>
-                  <Pressable style={styles.permBtn} onPress={requestPermission}>
-                    <Text style={styles.permBtnText}>Grant Camera Permission</Text>
-                  </Pressable>
+            <View style={[styles.cameraWrap, { width: size, height: size, borderRadius: size / 2, backgroundColor: 'rgba(32, 12, 28, 0.5)', justifyContent: 'center', alignItems: 'center' }]}>
+              {user?.photoUri ? (
+                <Image source={{ uri: user.photoUri }} style={{ width: size - stroke * 2, height: size - stroke * 2, borderRadius: (size - stroke * 2) / 2 }} />
+              ) : (
+                <View style={{ width: size - stroke * 2, height: size - stroke * 2, borderRadius: (size - stroke * 2) / 2, backgroundColor: '#D7AB6A', justifyContent: 'center', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 48, fontWeight: '800', color: '#31122B' }}>
+                    {(user?.name || 'U').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                  </Text>
                 </View>
               )}
-
-              {/* HUD Biometric Target Overlay */}
+              {/* HUD Target Overlay */}
               <View style={[StyleSheet.absoluteFill, { pointerEvents: 'none' }]}>
                 <Svg width={size} height={size}>
-                  {/* Outer Orbit Track */}
                   <Circle cx={c} cy={c} r={r} stroke="rgba(215,171,106,0.3)" strokeWidth={stroke} fill="none" />
-                  {/* Active Scanning Arc */}
                   <Circle
                     cx={c}
                     cy={c}
@@ -589,35 +650,10 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
                     strokeDashoffset={dashOffset}
                     transform={`rotate(-90 ${c} ${c})`}
                   />
-                  {/* Arc Head Anchors */}
                   <Circle cx={c} cy={c - r} r={stroke * 0.9} fill={sweepColor} />
                   <Circle cx={endX} cy={endY} r={stroke * 0.9} fill={sweepColor} />
-
-                  {/* Corner HUD Brackets when scanning */}
-                  {!done && (
-                    <>
-                      <Line x1={c - 40} y1={c - 55} x2={c - 55} y2={c - 55} stroke="rgba(215,171,106,0.6)" strokeWidth={2} />
-                      <Line x1={c - 55} y1={c - 55} x2={c - 55} y2={c - 40} stroke="rgba(215,171,106,0.6)" strokeWidth={2} />
-                      <Line x1={c + 40} y1={c - 55} x2={c + 55} y2={c - 55} stroke="rgba(215,171,106,0.6)" strokeWidth={2} />
-                      <Line x1={c + 55} y1={c - 55} x2={c + 55} y2={c - 40} stroke="rgba(215,171,106,0.6)" strokeWidth={2} />
-                      <Line x1={c - 40} y1={c + 55} x2={c - 55} y2={c + 55} stroke="rgba(215,171,106,0.6)" strokeWidth={2} />
-                      <Line x1={c - 55} y1={c + 55} x2={c - 55} y2={c + 40} stroke="rgba(215,171,106,0.6)" strokeWidth={2} />
-                      <Line x1={c + 40} y1={c + 55} x2={c + 55} y2={c + 55} stroke="rgba(215,171,106,0.6)" strokeWidth={2} />
-                      <Line x1={c + 55} y1={c + 55} x2={c + 55} y2={c + 40} stroke="rgba(215,171,106,0.6)" strokeWidth={2} />
-                    </>
-                  )}
                 </Svg>
               </View>
-
-              {/* Camera Switch Toggle */}
-              {!done && (
-                <Pressable
-                  style={styles.camFlipBtn}
-                  onPress={() => setFacing((f) => (f === 'front' ? 'back' : 'front'))}
-                >
-                  <Text style={{ fontSize: 16 }}>🔄</Text>
-                </Pressable>
-              )}
             </View>
           )}
 
@@ -746,7 +782,7 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
 
           {/* Food Count Navigation Button (If attendance is marked) */}
           {done && (
-            <Pressable style={styles.foodCountNavCard} onPress={onFoodCount}>
+            <Pressable style={styles.foodCountNavCard} onPress={() => setShowFoodPopup(true)}>
               <View style={styles.foodCountIconWrap}>
                 <Svg width={22} height={22} viewBox="0 0 24 24">
                   <Rect x={4} y={2} width={16} height={20} rx={2.5} stroke="#D7AB6A" strokeWidth={1.8} fill="rgba(215,171,106,0.35)" />
@@ -756,17 +792,21 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={styles.foodCountTitle}>MEAL COUNT</Text>
-                <Text style={styles.foodCountSub}>Record meal requirements for today</Text>
+                <Text style={styles.foodCountSub}>
+                  {foodSubmitted
+                    ? `Lunch: ${selectedMeals.lunch ? 'YES' : 'NO'} · Snacks: ${selectedMeals.eveningSnacks ? 'YES' : 'NO'}`
+                    : 'Tap to select or update today\'s meal options'}
+                </Text>
               </View>
               <Text style={styles.foodCountArrow}>{'>'}</Text>
             </Pressable>
           )}
         </ScrollView>
 
-        {/* ── FOOD COUNT PROMPT MODAL ── */}
+        {/* ── FOOD COUNT PROMPT & OPTIONS MODAL ── */}
         <Modal visible={showFoodPopup} transparent animationType="fade" onRequestClose={() => setShowFoodPopup(false)}>
           <View style={styles.modalOverlay}>
-            <View style={styles.modalCard}>
+            <View style={[styles.modalCard, { maxWidth: 360 }]}>
               <View style={styles.modalIconWrap}>
                 <Svg width={30} height={30} viewBox="0 0 24 24">
                   <Rect x={4} y={2} width={16} height={20} rx={2.5} stroke="#D7AB6A" strokeWidth={1.8} fill="rgba(215,171,106,0.35)" />
@@ -774,22 +814,59 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
                   <Circle cx={12} cy={14.5} r={1.8} fill="#D7AB6A" />
                 </Svg>
               </View>
-              <Text style={styles.modalTag}>FOOD SELECTION</Text>
-              <Text style={styles.modalTitle}>Plan Today's Meal Count</Text>
+              <Text style={styles.modalTag}>MEAL COUNT SELECTION</Text>
+              <Text style={styles.modalTitle}>Today's Meal Requirements</Text>
               <Text style={styles.modalDesc}>
-                Attendance verified! Please select your lunch and dinner requirements now.
+                Attendance verified! Select your meal options for today:
               </Text>
+
+              {/* Meal Options Selection List */}
+              <View style={styles.mealOptionsWrap}>
+                {[
+                  { key: 'lunch' as MealKey, label: '🍱 Lunch', desc: 'Afternoon meals' },
+                  { key: 'eveningSnacks' as MealKey, label: '☕ Evening Snacks', desc: 'Tea & snacks' },
+                  { key: 'breakfast' as MealKey, label: '🥐 Breakfast', desc: 'Morning breakfast' },
+                  { key: 'morningSnacks' as MealKey, label: '🍪 Morning Snacks', desc: 'Morning refreshments' },
+                ].map((item) => {
+                  const isSelected = !!selectedMeals[item.key];
+                  return (
+                    <Pressable
+                      key={item.key}
+                      style={[styles.mealOptionCard, isSelected && styles.mealOptionCardActive]}
+                      onPress={() => toggleMeal(item.key)}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.mealOptionLabel, isSelected && styles.mealOptionLabelActive]}>
+                          {item.label}
+                        </Text>
+                        <Text style={styles.mealOptionDesc}>{item.desc}</Text>
+                      </View>
+                      <View style={[styles.mealCheckCircle, isSelected && styles.mealCheckCircleActive]}>
+                        <Text style={styles.mealCheckText}>{isSelected ? '✓' : ''}</Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
               <Pressable
                 style={styles.modalPrimaryBtn}
-                onPress={() => {
-                  setShowFoodPopup(false);
-                  setTimeout(onFoodCount, 0);
-                }}
+                onPress={() => handleSaveMealSelection(false)}
+                disabled={foodSaving}
               >
-                <Text style={styles.modalPrimaryBtnText}>Select Food Count</Text>
+                {foodSaving ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.modalPrimaryBtnText}>Confirm Meal Count</Text>
+                )}
               </Pressable>
-              <Pressable style={styles.modalGhostBtn} onPress={() => setShowFoodPopup(false)}>
-                <Text style={styles.modalGhostBtnText}>Remind Me Later</Text>
+
+              <Pressable
+                style={styles.modalGhostBtn}
+                onPress={() => handleSaveMealSelection(true)}
+                disabled={foodSaving}
+              >
+                <Text style={styles.modalGhostBtnText}>Not Having Food Today / Skip</Text>
               </Pressable>
             </View>
           </View>
@@ -1497,7 +1574,7 @@ const styles = StyleSheet.create({
   },
   modalTableRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'center',    
     justifyContent: 'space-between',
   },
   modalTableKey: {
@@ -1505,13 +1582,13 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     fontWeight: '600',
   },
-  modalTableVal: {
+  modalTableVal: { 
     color: BRAND.text,
     fontSize: 12.5,
     fontWeight: '700',
     maxWidth: 180,
     textAlign: 'right',
-  },
+  }, 
   modalDisclaimer: {
     color: BRAND.textDim,
     fontSize: 11,
@@ -1575,5 +1652,58 @@ const styles = StyleSheet.create({
     color: BRAND.textDim,
     fontSize: 13.5,
     fontWeight: '700',
+  },
+  mealOptionsWrap: {
+    width: '100%',
+    marginVertical: 12,
+    gap: 8,
+  },
+  mealOptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(215, 171, 106, 0.25)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  mealOptionCardActive: {
+    backgroundColor: 'rgba(215, 171, 106, 0.16)',
+    borderColor: BRAND.primary,
+  },
+  mealOptionLabel: {
+    color: BRAND.textDim,
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  mealOptionLabelActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  mealOptionDesc: {
+    color: BRAND.textDim,
+    fontSize: 11,
+    marginTop: 2,
+    opacity: 0.8,
+  },
+  mealCheckCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(215, 171, 106, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  mealCheckCircleActive: {
+    backgroundColor: BRAND.primary,
+    borderColor: BRAND.primary,
+  },
+  mealCheckText: {
+    color: '#31122B',
+    fontSize: 13,
+    fontWeight: '900',
   },
 });
