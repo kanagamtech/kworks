@@ -111,7 +111,7 @@ export const ManagementPage: React.FC = () => {
   const [selectedEmpEmail, setSelectedEmpEmail] = useState('');
 
   // Attendance Date and View Filter States (Not Absent / Present tracking)
-  const [attendanceDate, setAttendanceDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [attendanceDate, setAttendanceDate] = useState<string>('');
   const [attendanceViewMode, setAttendanceViewMode] = useState<'present' | 'absent' | 'analytics' | 'logs'>('present');
   const [attendanceSearch, setAttendanceSearch] = useState('');
   const [attendanceCompanyFilter, setAttendanceCompanyFilter] = useState('ALL');
@@ -1326,11 +1326,11 @@ export const ManagementPage: React.FC = () => {
               <div style={styles.chipsRow}>
                 <div style={styles.chip}>
                   <div style={{ ...styles.chipValue, color: '#2E8B57' }}>{presentEmployees.length}</div>
-                  <div style={styles.chipLabel}>🟢 Present Today</div>
+                  <div style={styles.chipLabel}>🟢 Present ({selectedDate})</div>
                 </div>
                 <div style={styles.chip}>
                   <div style={{ ...styles.chipValue, color: '#E05050' }}>{absentEmployees.length}</div>
-                  <div style={styles.chipLabel}>🔴 Absent Today</div>
+                  <div style={styles.chipLabel}>🔴 Not Checked In</div>
                 </div>
                 <div style={styles.chip}>
                   <div style={styles.chipValue}>{employees.length}</div>
@@ -1390,28 +1390,27 @@ export const ManagementPage: React.FC = () => {
                       cursor: 'pointer',
                     }}
                   >
-                    Today
+                    Today ({todayStr})
                   </button>
-                  {allDates.length > 0 && (
-                    <select
-                      value={selectedDate}
-                      onChange={(e) => setAttendanceDate(e.target.value)}
+                  {allDates.map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setAttendanceDate(d)}
                       style={{
-                        ...styles.fieldInput,
-                        width: 'auto',
+                        backgroundColor: selectedDate === d ? '#2E8B57' : 'rgba(46,139,87,0.12)',
+                        color: selectedDate === d ? '#FFFFFF' : '#2E8B57',
+                        border: '1px solid #2E8B57',
+                        borderRadius: '6px',
                         padding: '6px 10px',
-                        fontSize: '12px',
+                        fontSize: '11.5px',
+                        fontWeight: 800,
                         cursor: 'pointer',
                       }}
                     >
-                      <option value="">-- Jump to Active Date --</option>
-                      {allDates.map((d) => (
-                        <option key={d} value={d}>
-                          {d} ({attendance.filter((r) => r.date === d).length} check-ins)
-                        </option>
-                      ))}
-                    </select>
-                  )}
+                      {d} ({attendance.filter((r) => r.date === d).length})
+                    </button>
+                  ))}
                 </div>
 
                 {/* Company Filter & Search */}
