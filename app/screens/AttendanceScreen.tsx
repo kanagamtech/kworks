@@ -168,11 +168,22 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
           setPunchedOut(true);
           setPunchOutData(outParsed);
           setDone(true);
+
+          fetch(`${API_BASE}/api/attendance/punchout`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              date: today,
+              userEmail: userKey,
+              punchOutTime: outParsed.time || outParsed.punchOutTime || new Date().toLocaleTimeString(),
+              duration: outParsed.duration || '08h 00m',
+            }),
+          }).catch(() => {});
           return;
         }
       } catch {}
 
-      // Initial local check for offline speed
+      // Initial local check for offline speed and auto-upload
       try {
         const raw = await AsyncStorage.getItem('kworks_attendance_records');
         if (raw) {
@@ -184,6 +195,13 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
             setDone(true);
             setProgress(1);
             setStatus('Attendance verified & active!');
+
+            // Ensure server has this authentic mobile record
+            fetch(`${API_BASE}/api/attendance`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(todayRec),
+            }).catch(() => {});
           }
         }
       } catch {}
