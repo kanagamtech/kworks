@@ -21,7 +21,7 @@ import ChatScreen from './screens/ChatScreen';
 import * as Notifications from 'expo-notifications';
 import { API_BASE } from './utils/config';
 import { useAppUpdate } from './hooks/useAppUpdate';
-// UpdateModal removed — updates are fully silent via EAS OTA background bundle
+import UpdateModal from './components/UpdateModal';
 import type { UserProfile } from './types';
 
 Notifications.setNotificationHandler({
@@ -290,12 +290,30 @@ function AppInner() {
     setScreen('login');
   };
 
-  // useAppUpdate handles silent background EAS OTA — no popup, no modal
-  useAppUpdate();
+  const {
+    updateAvailable,
+    updateInfo,
+    isDownloading,
+    isDownloadingApk,
+    downloadProgress,
+    downloadAndInstallApk,
+    applyUpdate,
+    dismissUpdate,
+  } = useAppUpdate();
 
   const wrapScreen = (content: ReactNode) => (
     <Screen onOpenNotifications={() => setScreen('notifications')}>
       {content}
+      <UpdateModal
+        visible={updateAvailable}
+        updateInfo={updateInfo}
+        isDownloading={isDownloading}
+        isDownloadingApk={isDownloadingApk}
+        downloadProgress={downloadProgress}
+        onDownloadApk={downloadAndInstallApk}
+        onApply={applyUpdate}
+        onDismiss={dismissUpdate}
+      />
     </Screen>
   );
 

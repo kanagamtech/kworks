@@ -318,6 +318,7 @@ const server = http.createServer(async (req, res) => {
         if (req.method === 'GET') {
           return protectedRoute(async () => {
             const update = db.getAppUpdate() || {};
+            const defaultApk = 'https://expo.dev/artifacts/eas/umETEjrlthy-f8KLf3xD4XNQ2LY-eI05DtwBpBcnd3U.apk';
             return sendJSON(res, 200, {
               success: true,
               data: {
@@ -326,6 +327,7 @@ const server = http.createServer(async (req, res) => {
                 title: update.title || 'KwOrKs v1.3.0 Update Available',
                 notes: update.notes || 'Food Count, Realtime Chat, Attendance & Notification Center',
                 mandatory: false,
+                apkUrl: update.apkUrl || defaultApk,
               },
             });
           }, 'updates:read')(req, res);
@@ -344,6 +346,14 @@ const server = http.createServer(async (req, res) => {
             });
           }, 'updates:publish')(req, res);
         }
+      }
+
+      // Direct APK Download Redirect Route
+      if (pathname === '/api/app-apk' || pathname === '/api/download-apk') {
+        const update = db.getAppUpdate() || {};
+        const apk = update.apkUrl || 'https://expo.dev/artifacts/eas/umETEjrlthy-f8KLf3xD4XNQ2LY-eI05DtwBpBcnd3U.apk';
+        res.writeHead(302, { Location: apk });
+        return res.end();
       }
 
       // Companies Routes
