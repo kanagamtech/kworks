@@ -117,7 +117,7 @@ export const ManagementPage: React.FC = () => {
   const [attendanceCompanyFilter, setAttendanceCompanyFilter] = useState('ALL');
 
   // Food Count Filter & Action States
-  const [foodDate, setFoodDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [foodDate, setFoodDate] = useState<string>('');
   const [foodSearch, setFoodSearch] = useState('');
   const [foodCompanyFilter, setFoodCompanyFilter] = useState('ALL');
   const [isUpdatingFood, setIsUpdatingFood] = useState(false);
