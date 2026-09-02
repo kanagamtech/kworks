@@ -206,13 +206,6 @@ class Database {
     }
   }
 
-      // Save the restored state to local JSON file as a backup cache
-      this.save();
-    } catch (e) {
-      console.error('[KwOrKs MongoDB] Data restore error:', e.message);
-    }
-  }
-
   async syncToMongo() {
     if (!getIsConnected()) return;
     try {

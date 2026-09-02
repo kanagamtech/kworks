@@ -2,7 +2,7 @@
   "expo": {
     "name": "KwOrKs",
     "slug": "KwOrKs",
-    "version": "1.4.0-beta",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo-kanagam.png",
     "userInterfaceStyle": "automatic",
