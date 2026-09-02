@@ -1,7 +1,51 @@
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
 const bcrypt = require('bcryptjs');
 const { connectMongoDB, getIsConnected, Models } = require('./mongo');
+
+function sendExpoPushNotification(messages) {
+  return new Promise((resolve) => {
+    const validMessages = (Array.isArray(messages) ? messages : [messages]).filter(
+      (m) => m && m.to && typeof m.to === 'string' && m.to.startsWith('ExponentPushToken')
+    );
+    if (validMessages.length === 0) return resolve(null);
+
+    const dataString = JSON.stringify(validMessages);
+    const options = {
+      hostname: 'exp.host',
+      port: 443,
+      path: '/--/api/v2/push/send',
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Accept-encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(dataString),
+      },
+    };
+
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', (chunk) => (body += chunk));
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(body));
+        } catch {
+          resolve(body);
+        }
+      });
+    });
+
+    req.on('error', (err) => {
+      console.error('[KwOrKs Push] Error sending push notification:', err.message);
+      resolve(null);
+    });
+
+    req.write(dataString);
+    req.end();
+  });
+}
 
 const DB_FILE = path.join(__dirname, 'kworks_db.json');
 
@@ -60,15 +104,16 @@ const INITIAL_DATA = {
   chat_groups: [],
   companies: ['kanagamtech', 'amsems'],
   notifications: [],
+  push_tokens: {},
   app_updates: {
-    version: '1.0.0',
-    buildNumber: 1,
-    title: 'KwOrKs',
-    notes: 'Initial release',
+    version: '1.4.0-beta',
+    buildNumber: 4,
+    title: 'KwOrKs v1.4 Beta Test',
+    notes: 'End-to-End Encryption (E2EE), Permanent Chat Persistence, Targeted Push Notifications & In-Modal Food Selection.',
     mandatory: false,
-    apkUrl: '',
+    apkUrl: 'https://expo.dev/artifacts/eas/umETEjrlthy-f8KLf3xD4XNQ2LY-eI05DtwBpBcnd3U.apk',
     publishedAt: new Date().toISOString(),
-    updateId: 'upd_v1_0_0_base',
+    updateId: 'upd_v1_4_0_beta',
   },
   management_users: [],
 };
@@ -113,13 +158,14 @@ class Database {
     if (!getIsConnected()) return;
     try {
       // Restore ALL data from MongoDB (primary source of truth after redeploy)
-      const [mongoMsgs, mongoGroups, mongoNotifs, mongoEmployees, mongoAttendance, mongoNotices] = await Promise.all([
+      const [mongoMsgs, mongoGroups, mongoNotifs, mongoEmployees, mongoAttendance, mongoNotices, mongoPushTokens] = await Promise.all([
         Models.ChatMessage.find({}).sort({ timestamp: 1 }).lean().catch(() => []),
         Models.ChatGroup.find({}).lean().catch(() => []),
         Models.Notification.find({}).sort({ timestamp: -1 }).lean().catch(() => []),
         Models.Employee.find({}).lean().catch(() => []),
         Models.Attendance.find({}).lean().catch(() => []),
         Models.Notice.find({}).lean().catch(() => []),
+        Models.PushToken.find({}).lean().catch(() => []),
       ]);
 
       if (mongoMsgs && mongoMsgs.length > 0) {
@@ -143,6 +189,22 @@ class Database {
       if (mongoNotices && mongoNotices.length > 0) {
         this.data.notices = mongoNotices;
       }
+      if (mongoPushTokens && mongoPushTokens.length > 0) {
+        if (!this.data.push_tokens) this.data.push_tokens = {};
+        mongoPushTokens.forEach((pt) => {
+          if (pt.email && pt.pushToken) {
+            this.data.push_tokens[pt.email.toLowerCase().trim()] = pt.pushToken;
+          }
+        });
+        console.log(`[KwOrKs] Restored ${mongoPushTokens.length} push tokens from MongoDB`);
+      }
+
+      // Save the restored state to local JSON file as a backup cache
+      this.save();
+    } catch (e) {
+      console.error('[KwOrKs MongoDB] Data restore error:', e.message);
+    }
+  }
 
       // Save the restored state to local JSON file as a backup cache
       this.save();
@@ -438,6 +500,29 @@ class Database {
     return item;
   }
 
+  savePushToken(email, pushToken, platform = 'android') {
+    if (!email || !pushToken) return null;
+    const cleanEmail = email.toLowerCase().trim();
+    if (!this.data.push_tokens) this.data.push_tokens = {};
+    this.data.push_tokens[cleanEmail] = pushToken;
+    this.save();
+
+    if (getIsConnected()) {
+      Models.PushToken.updateOne(
+        { email: cleanEmail },
+        { $set: { email: cleanEmail, pushToken, platform, updated_at: new Date().toISOString() } },
+        { upsert: true }
+      ).catch(() => {});
+    }
+    return { email: cleanEmail, pushToken };
+  }
+
+  getPushToken(email) {
+    if (!email) return null;
+    const cleanEmail = email.toLowerCase().trim();
+    return (this.data.push_tokens && this.data.push_tokens[cleanEmail]) || null;
+  }
+
   getChatMessages() {
     return this.data.chat_messages || [];
   }
@@ -452,18 +537,29 @@ class Database {
     };
     if (!this.data.chat_messages) this.data.chat_messages = [];
     this.data.chat_messages.push(item);
+    this.save();
 
-    // Auto-generate notification for recipient or group members
+    // Persist immediately to MongoDB with upsert
+    if (getIsConnected()) {
+      Models.ChatMessage.updateOne({ id: item.id }, { $set: item }, { upsert: true }).catch((err) => {
+        console.error('[KwOrKs] Failed to persist chat message to MongoDB:', err.message);
+      });
+    }
+
+    // Auto-generate notification & Dispatch Expo Push Notification to receiver only
     try {
-      const sender = (this.data.employees || []).find(e => e.email?.toLowerCase() === msg.from?.toLowerCase());
+      const sender = (this.data.employees || []).find(e => e.email?.toLowerCase().trim() === msg.from?.toLowerCase().trim());
       const senderName = sender ? sender.name : (msg.from ? msg.from.split('@')[0] : 'Someone');
       const previewText = msg.text || (msg.photo ? '📷 Photo' : (msg.document ? `📄 ${msg.document.name || 'Document'}` : 'New message'));
+
+      const pushNotificationsToSend = [];
 
       // Check if target is a group
       const group = (this.data.chat_groups || []).find(g => g.id === msg.to);
       if (group && Array.isArray(group.members)) {
         group.members.forEach(memberEmail => {
-          if (memberEmail && memberEmail.toLowerCase() !== msg.from?.toLowerCase()) {
+          if (memberEmail && memberEmail.toLowerCase().trim() !== msg.from?.toLowerCase().trim()) {
+            // 1. In-App Notification history
             this.addNotification({
               title: `💬 ${group.name} (${senderName})`,
               body: `${senderName}: ${previewText}`,
@@ -475,10 +571,24 @@ class Database {
               groupId: group.id,
               from: msg.from,
             });
+
+            // 2. Real Push Notification for when app is closed
+            const token = this.getPushToken(memberEmail);
+            if (token) {
+              pushNotificationsToSend.push({
+                to: token,
+                sound: 'default',
+                title: `💬 ${group.name} (${senderName})`,
+                body: `${senderName}: ${previewText}`,
+                data: { type: 'chat', groupId: group.id, from: msg.from },
+                priority: 'high',
+                channelId: 'default',
+              });
+            }
           }
         });
-      } else if (msg.to) {
-        // Direct 1-on-1 message
+      } else if (msg.to && msg.to.toLowerCase().trim() !== msg.from?.toLowerCase().trim()) {
+        // Direct 1-on-1 message: ONLY notify the intended recipient
         this.addNotification({
           title: `💬 New Message from ${senderName}`,
           body: previewText,
@@ -489,15 +599,29 @@ class Database {
           employeeName: senderName,
           from: msg.from,
         });
+
+        const token = this.getPushToken(msg.to);
+        if (token) {
+          pushNotificationsToSend.push({
+            to: token,
+            sound: 'default',
+            title: `💬 ${senderName}`,
+            body: previewText,
+            data: { type: 'chat', from: msg.from },
+            priority: 'high',
+            channelId: 'default',
+          });
+        }
+      }
+
+      // Send Expo push notifications to phones
+      if (pushNotificationsToSend.length > 0) {
+        sendExpoPushNotification(pushNotificationsToSend).catch(() => {});
       }
     } catch (e) {
-      console.error('Error dispatching chat notification:', e);
+      console.error('[KwOrKs] Error dispatching chat push notification:', e);
     }
 
-    this.save();
-    if (getIsConnected()) {
-      Models.ChatMessage.create(item).catch(() => {});
-    }
     return item;
   }
 

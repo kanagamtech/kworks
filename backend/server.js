@@ -639,6 +639,18 @@ const server = http.createServer(async (req, res) => {
         }
       }
 
+      // Push Token Registration Route
+      if (pathname === '/api/push-token' && req.method === 'POST') {
+        return protectedRoute(async () => {
+          const body = await parseBody(req);
+          if (!body.email || !body.pushToken) {
+            return sendJSON(res, 400, { success: false, message: 'Email and pushToken required.' });
+          }
+          const saved = db.savePushToken(body.email, body.pushToken, body.platform);
+          return sendJSON(res, 200, { success: true, data: saved });
+        }, 'notices:read')(req, res);
+      }
+
       // Notifications Routes
       if (pathname === '/api/notifications') {
         if (req.method === 'GET') {

@@ -2,7 +2,7 @@
   "expo": {
     "name": "KwOrKs",
     "slug": "KwOrKs",
-    "version": "1.3.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo-kanagam.png",
     "userInterfaceStyle": "automatic",
@@ -18,7 +18,7 @@
       "infoPlist": {
         "NSCameraUsageDescription": "KwOrKs uses your camera to capture your attendance.",
         "NSLocationWhenInUseUsageDescription": "KwOrKs uses your location to record where you mark your attendance.",
-        "NSPhotoLibraryUsageDescription": "KwOrKs uses your photo library to set your profile picture."
+        "NSPhotoLibraryUsageDescrAiption": "KwOrKs uses your photo library to set your profile picture."
       }
     },
     "android": {

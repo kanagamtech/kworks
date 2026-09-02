@@ -16,7 +16,7 @@ export interface AppUpdateInfo {
   updateId: string;
 }
 
-const CURRENT_APP_VERSION = '1.3.0';
+const CURRENT_APP_VERSION = '1.4.0-beta';
 const DEFAULT_APK_FALLBACK_URL = 'https://expo.dev/artifacts/eas/umETEjrlthy-f8KLf3xD4XNQ2LY-eI05DtwBpBcnd3U.apk';
 const APPLIED_UPDATE_KEY = 'kworks_applied_update_version';
 const DISMISSED_UPDATE_KEY = 'kworks_dismissed_update_version';

@@ -23,6 +23,7 @@ import Text from '../components/AppText';
 import MorningBackground from '../components/MorningBackground';
 import { useResponsive } from '../hooks/useResponsive';
 import { API_BASE } from '../utils/config';
+import { encryptMessage, decryptMessage, getConversationKey, isEncryptedMessage } from '../utils/e2ee';
 import type { UserProfile } from '../types';
 
 const CHAT_CACHE_KEY = 'kworks_chat_messages_cache';
@@ -258,31 +259,6 @@ export default function ChatScreen({ onBack, user }: Props) {
       .catch(() => {});
   }, [user]);
 
-  // 1.5. Restore cached chat messages & groups on mount
-  useEffect(() => {
-    AsyncStorage.getItem(CHAT_CACHE_KEY)
-      .then((raw) => {
-        if (raw) {
-          const cached = JSON.parse(raw);
-          if (Array.isArray(cached) && cached.length > 0) {
-            setAllMessages(cached);
-          }
-        }
-      })
-      .catch(() => {});
-
-    AsyncStorage.getItem(GROUPS_CACHE_KEY)
-      .then((raw) => {
-        if (raw) {
-          const cached = JSON.parse(raw);
-          if (Array.isArray(cached) && cached.length > 0) {
-            setGroups(cached);
-          }
-        }
-      })
-      .catch(() => {});
-  }, []);
-
   // 2. Fetch groups
   const fetchGroups = () => {
     fetch(`${API_BASE}/api/chat/groups`)
@@ -302,13 +278,54 @@ export default function ChatScreen({ onBack, user }: Props) {
       .catch(() => {});
   };
 
+  // Instant local offline cache loading on mount
+  useEffect(() => {
+    AsyncStorage.getItem(CHAT_CACHE_KEY)
+      .then((raw) => {
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setAllMessages(parsed);
+              const userEmail = (user?.email || '').toLowerCase().trim();
+              if (selectedContact) {
+                const contactEmail = selectedContact.email.toLowerCase().trim();
+                const filtered = parsed.filter(
+                  (m: ChatMessage) =>
+                    (m.from?.toLowerCase().trim() === userEmail && m.to?.toLowerCase().trim() === contactEmail) ||
+                    (m.from?.toLowerCase().trim() === contactEmail && m.to?.toLowerCase().trim() === userEmail)
+                );
+                setMessages(filtered);
+              } else if (selectedGroup) {
+                setMessages(parsed.filter((m: ChatMessage) => m.to === selectedGroup.id));
+              }
+            }
+          } catch {}
+        }
+      })
+      .catch(() => {});
+
+    AsyncStorage.getItem(GROUPS_CACHE_KEY)
+      .then((raw) => {
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setGroups(parsed);
+            }
+          } catch {}
+        }
+      })
+      .catch(() => {});
+  }, [selectedContact, selectedGroup, user]);
+
   useEffect(() => {
     fetchGroups();
     const interval = setInterval(fetchGroups, 3000);
     return () => clearInterval(interval);
   }, [user]);
 
-  // 3. Message polling & In-App Notification Trigger
+  // 3. Message polling & In-App Notification Trigger (Receiver Only)
   useEffect(() => {
     if (!user?.email) return;
 
@@ -320,54 +337,70 @@ export default function ChatScreen({ onBack, user }: Props) {
             setAllMessages(res.data);
             AsyncStorage.setItem(CHAT_CACHE_KEY, JSON.stringify(res.data)).catch(() => {});
 
-            // Check if a new message arrived for banner notification
+            // Check if a new message arrived for banner notification (RECEIVER ONLY)
             if (lastMsgCountRef.current > 0 && res.data.length > lastMsgCountRef.current) {
               const latest = res.data[res.data.length - 1];
-              if (latest && latest.from?.toLowerCase() !== user.email?.toLowerCase() && !latest.isDeleted) {
-                // Check if this message belongs to currently open conversation
-                const isCurrentConv =
-                  (selectedContact && latest.from?.toLowerCase() === selectedContact.email.toLowerCase()) ||
-                  (selectedGroup && latest.to === selectedGroup.id);
+              const myEmail = (user.email || '').toLowerCase().trim();
+              const isFromMe = latest?.from?.toLowerCase().trim() === myEmail;
 
-                if (!isCurrentConv) {
-                  // Trigger In-App & Native System Notification!
-                  const senderContact = contacts.find((c) => c.email.toLowerCase() === latest.from?.toLowerCase());
-                  const senderGroup = groups.find((g) => g.id === latest.to);
-                  const senderTitle = senderGroup ? `👥 ${senderGroup.name}` : senderContact ? senderContact.name : latest.from;
-                  const snippet = latest.text || (latest.photo ? '📷 Sent a photo' : '📄 Sent a document');
+              if (latest && !isFromMe && !latest.isDeleted) {
+                const isDirectToMe = latest.to?.toLowerCase().trim() === myEmail;
+                const isMyGroup = groups.some(
+                  (g) =>
+                    g.id === latest.to &&
+                    (g.members?.some((m) => m.toLowerCase().trim() === myEmail) ||
+                      g.creator?.toLowerCase().trim() === myEmail)
+                );
 
-                  // Native Android/iOS system notification
-                  if (Platform.OS !== 'web') {
-                    Notifications.scheduleNotificationAsync({
-                      content: {
-                        title: `💬 ${senderTitle}`,
-                        body: snippet,
-                        sound: 'default',
-                      },
-                      trigger: null,
-                    }).catch(() => {});
-                  }
+                // ONLY notify if message is addressed to this user or this user's group
+                if (isDirectToMe || isMyGroup) {
+                  // Check if this message belongs to currently open conversation
+                  const isCurrentConv =
+                    (selectedContact && latest.from?.toLowerCase().trim() === selectedContact.email.toLowerCase().trim()) ||
+                    (selectedGroup && latest.to === selectedGroup.id);
 
-                  setBannerNotif({
-                    sender: senderTitle,
-                    text: snippet,
-                    contact: senderContact,
-                    group: senderGroup,
-                  });
+                  if (!isCurrentConv) {
+                    // Trigger In-App & Native System Notification!
+                    const senderContact = contacts.find((c) => c.email.toLowerCase().trim() === latest.from?.toLowerCase().trim());
+                    const senderGroup = groups.find((g) => g.id === latest.to);
+                    const senderTitle = senderGroup ? `👥 ${senderGroup.name}` : senderContact ? senderContact.name : latest.from;
 
-                  Animated.timing(bannerFade, {
-                    toValue: 1,
-                    duration: 300,
-                    useNativeDriver: true,
-                  }).start();
+                    const notifKey = getConversationKey(myEmail, latest.to?.startsWith('grp_') ? latest.to : (latest.from || ''));
+                    const plainSnippet = latest.text ? decryptMessage(latest.text, notifKey) : (latest.photo ? '📷 Sent a photo' : (latest.document ? `📄 ${latest.document.name || 'Document'}` : 'New message'));
 
-                  setTimeout(() => {
+                    // Native Android/iOS system notification
+                    if (Platform.OS !== 'web') {
+                      Notifications.scheduleNotificationAsync({
+                        content: {
+                          title: `💬 ${senderTitle}`,
+                          body: plainSnippet,
+                          sound: 'default',
+                        },
+                        trigger: null,
+                      }).catch(() => {});
+                    }
+
+                    setBannerNotif({
+                      sender: senderTitle,
+                      text: plainSnippet,
+                      contact: senderContact,
+                      group: senderGroup,
+                    });
+
                     Animated.timing(bannerFade, {
-                      toValue: 0,
-                      duration: 400,
+                      toValue: 1,
+                      duration: 300,
                       useNativeDriver: true,
-                    }).start(() => setBannerNotif(null));
-                  }, 4500);
+                    }).start();
+
+                    setTimeout(() => {
+                      Animated.timing(bannerFade, {
+                        toValue: 0,
+                        duration: 400,
+                        useNativeDriver: true,
+                      }).start(() => setBannerNotif(null));
+                    }, 4500);
+                  }
                 }
               }
             }
@@ -375,13 +408,15 @@ export default function ChatScreen({ onBack, user }: Props) {
 
             // Filter for currently open conversation
             let filtered: ChatMessage[] = [];
+            const myEmail = (user.email || '').toLowerCase().trim();
             if (selectedContact) {
+              const contactEmail = selectedContact.email.toLowerCase().trim();
               filtered = res.data.filter(
                 (m: ChatMessage) =>
-                  (m.from?.toLowerCase() === user.email?.toLowerCase() &&
-                    m.to?.toLowerCase() === selectedContact.email?.toLowerCase()) ||
-                  (m.from?.toLowerCase() === selectedContact.email?.toLowerCase() &&
-                    m.to?.toLowerCase() === user.email?.toLowerCase())
+                  (m.from?.toLowerCase().trim() === myEmail &&
+                    m.to?.toLowerCase().trim() === contactEmail) ||
+                  (m.from?.toLowerCase().trim() === contactEmail &&
+                    m.to?.toLowerCase().trim() === myEmail)
               );
               // Mark messages as read
               fetch(`${API_BASE}/api/chat/read`, {
@@ -434,14 +469,24 @@ export default function ChatScreen({ onBack, user }: Props) {
 
     setIsSending(true);
     const toId = selectedContact ? selectedContact.email : selectedGroup!.id;
+    const convKey = getConversationKey(user?.email || '', toId);
+
+    let rawText = inputText.trim();
+    if (customPayload?.text) rawText = customPayload.text;
+
+    const encryptedText = rawText ? encryptMessage(rawText, convKey) : undefined;
 
     const payload: any = {
       from: user?.email ?? 'employee@kworks.com',
       to: toId,
-      text: inputText.trim() || undefined,
+      text: encryptedText,
       isSecret: isSecretMode,
       ...customPayload,
     };
+
+    if (encryptedText && !customPayload?.text) {
+      payload.text = encryptedText;
+    }
 
     if (replyingTo) {
       const authorContact = contacts.find((c) => c.email.toLowerCase() === replyingTo.from.toLowerCase());
@@ -640,8 +685,11 @@ export default function ChatScreen({ onBack, user }: Props) {
       );
       return;
     }
+    const toId = selectedContact ? selectedContact.email : selectedGroup!.id;
+    const convKey = getConversationKey(user?.email || '', toId);
+    const plainText = msg.text ? decryptMessage(msg.text, convKey) : '';
     setEditingMessage(msg);
-    setEditText(msg.text || '');
+    setEditText(plainText);
   };
 
   // Handler: Save Edited Message
@@ -649,11 +697,15 @@ export default function ChatScreen({ onBack, user }: Props) {
     if (!editingMessage || !editText.trim()) return;
     setIsSavingEdit(true);
 
+    const toId = selectedContact ? selectedContact.email : selectedGroup!.id;
+    const convKey = getConversationKey(user?.email || '', toId);
+    const encryptedText = encryptMessage(editText.trim(), convKey);
+
     fetch(`${API_BASE}/api/chat/messages/${editingMessage.id}/edit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        text: editText.trim(),
+        text: encryptedText,
         userEmail: user?.email,
       }),
     })
@@ -1094,12 +1146,25 @@ export default function ChatScreen({ onBack, user }: Props) {
               data={messages}
               keyExtractor={(item) => item.id}
               contentContainerStyle={{ padding: 14, paddingBottom: 24 }}
+              ListHeaderComponent={
+                <View style={styles.e2eeBanner}>
+                  <Text style={styles.e2eeIcon}>🔒</Text>
+                  <Text style={styles.e2eeBannerText}>
+                    Messages and attachments are end-to-end encrypted. No one outside of this chat, not even KwOrKs servers, can read them.
+                  </Text>
+                </View>
+              }
               renderItem={({ item }) => {
                 const mine = item.from?.toLowerCase() === user?.email?.toLowerCase();
                 const senderContact = contacts.find((c) => c.email.toLowerCase() === item.from.toLowerCase());
                 const senderName = senderContact?.name || item.from.split('@')[0];
                 const isSecretProtected = item.isSecret && !revealedSecrets[item.id];
                 const reactionsList = item.reactions ? Object.values(item.reactions) : [];
+
+                const toId = selectedContact ? selectedContact.email : selectedGroup?.id || '';
+                const convKey = getConversationKey(user?.email || '', toId);
+                const decryptedText = item.text ? decryptMessage(item.text, convKey) : '';
+                const isEnc = isEncryptedMessage(item.text);
 
                 return (
                   <Pressable
@@ -1178,19 +1243,22 @@ export default function ChatScreen({ onBack, user }: Props) {
                           )}
 
                           {/* Message Text */}
-                          {item.text && (!item.document || item.text !== item.document.name) && (
-                            <Text style={styles.bubbleMessageText}>{item.text}</Text>
+                          {decryptedText && (!item.document || decryptedText !== item.document.name) && (
+                            <Text style={styles.bubbleMessageText}>{decryptedText}</Text>
                           )}
                         </>
                       )}
 
-                      {/* Meta Footer: Timestamp, Edited Tag & Checkmarks */}
+                      {/* Meta Footer: Timestamp, Edited Tag, Lock Icon & Checkmarks */}
                       <View style={styles.bubbleMetaRow}>
                         {revealedSecrets[item.id] ? (
                           <Text style={styles.secretTimerText}>⏱️ {Math.max(0, Math.ceil((revealedSecrets[item.id] - Date.now()) / 1000))}s</Text>
                         ) : null}
                         {item.isEdited && !item.isDeleted && (
                           <Text style={styles.editedTagText}>(edited)</Text>
+                        )}
+                        {isEnc && !item.isDeleted && (
+                          <Text style={{ fontSize: 9.5, color: BRAND.primary, marginRight: 3 }}>🔒</Text>
                         )}
                         <Text style={styles.bubbleTimeText}>{formatTime(item.timestamp)}</Text>
                         {mine && !item.isDeleted && (
@@ -2445,5 +2513,29 @@ const styles = StyleSheet.create({
     color: '#2B1022',
     fontSize: 14,
     fontWeight: '800',
+  },
+  e2eeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(215, 171, 106, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(215, 171, 106, 0.3)',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginBottom: 16,
+    marginHorizontal: 16,
+  },
+  e2eeIcon: {
+    fontSize: 15,
+    marginRight: 8,
+  },
+  e2eeBannerText: {
+    flex: 1,
+    color: '#D7AB6A',
+    fontSize: 11.5,
+    lineHeight: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

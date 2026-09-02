@@ -9,6 +9,7 @@ const EmployeeSchema = new mongoose.Schema({
   department: { type: String, default: 'General' },
   destination: { type: String, default: 'Employee' },
   photo: { type: String, default: '' },
+  pushToken: { type: String, default: '' },
   faceData: { type: mongoose.Schema.Types.Mixed },
   created_at: { type: String, default: () => new Date().toISOString() },
 });
@@ -151,6 +152,13 @@ const ChatGroupSchema = new mongoose.Schema({
   creator: { type: String },
 });
 
+const PushTokenSchema = new mongoose.Schema({
+  email: { type: String, required: true, unique: true, index: true },
+  pushToken: { type: String, required: true },
+  platform: { type: String, default: 'android' },
+  updated_at: { type: String, default: () => new Date().toISOString() },
+});
+
 const Models = {
   Employee: mongoose.models.Employee || mongoose.model('Employee', EmployeeSchema),
   Attendance: mongoose.models.Attendance || mongoose.model('Attendance', AttendanceSchema),
@@ -164,6 +172,7 @@ const Models = {
   AppUpdate: mongoose.models.AppUpdate || mongoose.model('AppUpdate', AppUpdateSchema),
   ChatMessage: mongoose.models.ChatMessage || mongoose.model('ChatMessage', ChatMessageSchema),
   ChatGroup: mongoose.models.ChatGroup || mongoose.model('ChatGroup', ChatGroupSchema),
+  PushToken: mongoose.models.PushToken || mongoose.model('PushToken', PushTokenSchema),
 };
 
 let isConnected = false;

@@ -20,6 +20,7 @@ import ClaimsScreen from './screens/ClaimsScreen';
 import ChatScreen from './screens/ChatScreen';
 import * as Notifications from 'expo-notifications';
 import { API_BASE } from './utils/config';
+import { decryptMessage, getConversationKey } from './utils/e2ee';
 import { useAppUpdate } from './hooks/useAppUpdate';
 import UpdateModal from './components/UpdateModal';
 import type { UserProfile } from './types';
@@ -188,27 +189,89 @@ function AppInner() {
     return () => clearInterval(interval);
   }, []);
 
-  // ── Global Chat Notification Poller ──────────────────────────────────────────
+  // ── Push Token Registration (Enables notifications when app is closed) ─────
+  useEffect(() => {
+    if (!user?.email || Platform.OS === 'web') return;
+
+    const registerPush = async () => {
+      try {
+        if (Platform.OS === 'android') {
+          await Notifications.setNotificationChannelAsync('default', {
+            name: 'KwOrKs Notifications',
+            importance: Notifications.AndroidImportance.MAX,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: '#D7AB6A',
+          });
+        }
+
+        const perms = await Notifications.getPermissionsAsync();
+        let finalStatus = perms.status;
+        if (finalStatus !== 'granted') {
+          const req = await Notifications.requestPermissionsAsync();
+          finalStatus = req.status;
+        }
+        if (finalStatus !== 'granted') return;
+
+        const tokenData = await Notifications.getExpoPushTokenAsync({
+          projectId: '569c3d31-192e-426b-ab82-aa908ccd332f',
+        });
+
+        if (tokenData && tokenData.data) {
+          fetch(`${API_BASE}/api/push-token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: user.email,
+              pushToken: tokenData.data,
+              platform: Platform.OS,
+            }),
+          }).catch(() => {});
+        }
+      } catch (err) {
+        console.warn('[KwOrKs] Push registration error:', err);
+      }
+    };
+
+    registerPush();
+  }, [user?.email]);
+
+  // ── Global Chat Notification Poller (Receiver Only) ─────────────────────────
   const knownChatIdsRef = useRef<Set<string>>(new Set());
   const isFirstChatPollRef = useRef<boolean>(true);
+  const userGroupsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!user?.email) return;
 
-    if (Platform.OS !== 'web') {
-      Notifications.getPermissionsAsync().then((perms) => {
-        if (perms.status !== 'granted') {
-          Notifications.requestPermissionsAsync();
-        }
-      });
-    }
+    // Load user groups to know which groups this user belongs to
+    const fetchUserGroups = () => {
+      fetch(`${API_BASE}/api/chat/groups`)
+        .then((res) => res.json())
+        .then((res) => {
+          if (res.success && Array.isArray(res.data)) {
+            const myEmail = user.email.toLowerCase().trim();
+            const myGrpIds = new Set<string>();
+            res.data.forEach((g: any) => {
+              if (
+                g.members?.some((m: string) => m.toLowerCase().trim() === myEmail) ||
+                g.creator?.toLowerCase().trim() === myEmail
+              ) {
+                myGrpIds.add(g.id);
+              }
+            });
+            userGroupsRef.current = myGrpIds;
+          }
+        })
+        .catch(() => {});
+    };
+    fetchUserGroups();
 
     const checkGlobalChat = () => {
       fetch(`${API_BASE}/api/chat`)
         .then((res) => res.json())
         .then((res) => {
           if (res.success && Array.isArray(res.data)) {
-            const myEmail = user.email.toLowerCase();
+            const myEmail = user.email.toLowerCase().trim();
 
             if (isFirstChatPollRef.current) {
               // Seed known IDs on first load
@@ -224,21 +287,25 @@ function AppInner() {
 
               knownChatIdsRef.current.add(msg.id);
 
-              const isFromOther = msg.from?.toLowerCase() !== myEmail;
-              const isDirectToMe = msg.to?.toLowerCase() === myEmail;
-              const isGroupMsg = msg.to?.startsWith('grp_');
+              const isFromMe = msg.from?.toLowerCase().trim() === myEmail;
+              if (isFromMe) return; // Sender NEVER receives notification for own message
 
-              if (isFromOther && (isDirectToMe || isGroupMsg)) {
+              const isDirectToMe = msg.to?.toLowerCase().trim() === myEmail;
+              const isMyGroup = msg.to?.startsWith('grp_') && userGroupsRef.current.has(msg.to);
+
+              // ONLY the intended receiver or group member gets notified
+              if (isDirectToMe || isMyGroup) {
                 if (screen !== 'chat') {
                   const senderName = msg.from?.split('@')[0] || 'Someone';
-                  const title = isGroupMsg ? `💬 Group: ${senderName}` : `💬 ${senderName}`;
-                  const body = msg.text || (msg.photo ? '📷 Sent a photo' : (msg.document ? `📄 ${msg.document.name || 'Document'}` : 'New message'));
+                  const title = isMyGroup ? `💬 Group Message (${senderName})` : `💬 ${senderName}`;
+                  const convKey = getConversationKey(myEmail, isMyGroup ? msg.to : msg.from);
+                  const plainSnippet = msg.text ? decryptMessage(msg.text, convKey) : (msg.photo ? '📷 Sent a photo' : (msg.document ? `📄 ${msg.document.name || 'Document'}` : 'New message'));
 
                   if (Platform.OS !== 'web') {
                     Notifications.scheduleNotificationAsync({
                       content: {
                         title,
-                        body,
+                        body: plainSnippet,
                         sound: 'default',
                       },
                       trigger: null,
