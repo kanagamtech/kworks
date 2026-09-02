@@ -1689,47 +1689,43 @@ export const ManagementPage: React.FC = () => {
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                 <span
                                   style={{
-                                    fontSize: '12px',
+                                    fontSize: '11.5px',
                                     fontWeight: 800,
                                     backgroundColor: 'rgba(46,139,87,0.15)',
                                     color: '#2E8B57',
-                                    padding: '2px 8px',
-                                    borderRadius: '4px',
+                                    padding: '3px 8px',
+                                    borderRadius: '6px',
+                                    border: '1px solid rgba(46,139,87,0.3)',
                                   }}
                                 >
-                                  In: {rec.time || 'Checked In'}
+                                  🟢 PUNCH IN: {rec.time || 'Checked In'}
                                 </span>
-                                {rec.punchOutTime && (
-                                  <span
-                                    style={{
-                                      fontSize: '12px',
-                                      fontWeight: 800,
-                                      backgroundColor: 'rgba(215,171,106,0.15)',
-                                      color: '#9C7B4E',
-                                      padding: '2px 8px',
-                                      borderRadius: '4px',
-                                    }}
-                                  >
-                                    Out: {rec.punchOutTime}
-                                  </span>
-                                )}
+                                <span
+                                  style={{
+                                    fontSize: '11.5px',
+                                    fontWeight: 800,
+                                    backgroundColor: rec.punchOutTime ? 'rgba(215,171,106,0.2)' : 'rgba(46,139,87,0.1)',
+                                    color: rec.punchOutTime ? '#9C7B4E' : '#2E8B57',
+                                    padding: '3px 8px',
+                                    borderRadius: '6px',
+                                    border: '1px solid rgba(215,171,106,0.4)',
+                                  }}
+                                >
+                                  🚪 PUNCH OUT: {rec.punchOutTime || 'Active (In Progress)'}
+                                </span>
                                 {rec.duration && (
                                   <span
                                     style={{
-                                      fontSize: '12px',
+                                      fontSize: '11.5px',
                                       fontWeight: 800,
                                       backgroundColor: 'rgba(75,29,63,0.1)',
                                       color: '#4B1D3F',
-                                      padding: '2px 8px',
-                                      borderRadius: '4px',
+                                      padding: '3px 8px',
+                                      borderRadius: '6px',
+                                      border: '1px solid rgba(75,29,63,0.2)',
                                     }}
                                   >
-                                    ⏱️ {rec.duration}
-                                  </span>
-                                )}
-                                {!rec.punchOutTime && (
-                                  <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#2E8B57' }}>
-                                    ✓ ACTIVE SHIFT
+                                    ⏱️ DURATION: {rec.duration}
                                   </span>
                                 )}
                               </div>
@@ -2248,19 +2244,17 @@ export const ManagementPage: React.FC = () => {
                                       <div style={{ flex: 1 }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                           <span style={styles.empName}>{r.name || r.user}</span>
-                                          <span style={{ fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(46,139,87,0.15)', color: '#2E8B57', padding: '2px 6px', borderRadius: '4px' }}>
-                                            In: {r.time}
+                                          <span style={{ fontSize: '11.5px', fontWeight: 800, backgroundColor: 'rgba(46,139,87,0.15)', color: '#2E8B57', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(46,139,87,0.3)' }}>
+                                            🟢 PUNCH IN: {r.time}
                                           </span>
-                                          {r.punchOutTime && (
-                                            <span style={{ fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(215,171,106,0.2)', color: '#9C7B4E', padding: '2px 6px', borderRadius: '4px' }}>
-                                              Out: {r.punchOutTime}
-                                            </span>
-                                          )}
+                                          <span style={{ fontSize: '11.5px', fontWeight: 800, backgroundColor: r.punchOutTime ? 'rgba(215,171,106,0.2)' : 'rgba(46,139,87,0.1)', color: r.punchOutTime ? '#9C7B4E' : '#2E8B57', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(215,171,106,0.4)' }}>
+                                            🚪 PUNCH OUT: {r.punchOutTime || 'Active (In Progress)'}
+                                          </span>
                                           {r.duration && (
-                                            <span style={{ fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(75,29,63,0.1)', color: '#4B1D3F', padding: '2px 6px', borderRadius: '4px' }}>
-                                              ⏱️ {r.duration}
-                                            </span>
-                                          )}
+                                             <span style={{ fontSize: '11.5px', fontWeight: 800, backgroundColor: 'rgba(75,29,63,0.1)', color: '#4B1D3F', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(75,29,63,0.2)' }}>
+                                               ⏱️ {r.duration}
+                                             </span>
+                                           )}
                                           {!r.punchOutTime && (
                                             <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#2E8B57' }}>
                                               ✓ ACTIVE SHIFT
