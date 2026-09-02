@@ -361,7 +361,41 @@ function AppInner() {
     return () => backSub.remove();
   }, [screen, user]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const currentUser = user;
+    if (currentUser?.email) {
+      const d = new Date();
+      const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const nowTime = new Date().toLocaleTimeString();
+
+      let durationStr = 'Active';
+      try {
+        const lastAttTime = await AsyncStorage.getItem('kworks_last_attendance_time');
+        if (lastAttTime) {
+          const startMs = parseInt(lastAttTime, 10);
+          if (!isNaN(startMs)) {
+            const diffSecs = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+            const hrs = String(Math.floor(diffSecs / 3600)).padStart(2, '0');
+            const mins = String(Math.floor((diffSecs % 3600) / 60)).padStart(2, '0');
+            const secs = String(diffSecs % 60).padStart(2, '0');
+            durationStr = `${hrs}h ${mins}m ${secs}s`;
+          }
+        }
+      } catch {}
+
+      // Automatically register real punch-out time on logout
+      fetch(`${API_BASE}/api/attendance/punchout`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: today,
+          userEmail: currentUser.email.trim().toLowerCase(),
+          punchOutTime: nowTime,
+          duration: durationStr,
+        }),
+      }).catch(() => {});
+    }
+
     setUser(null);
     AsyncStorage.removeItem(USER_STORAGE_KEY).catch(() => {});
     AsyncStorage.removeItem('kworks_last_attendance_time').catch(() => {});
