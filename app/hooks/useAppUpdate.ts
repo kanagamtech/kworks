@@ -67,12 +67,7 @@ export function useAppUpdate() {
       try {
         const result = await Updates.checkForUpdateAsync();
         if (result.isAvailable) {
-          const updateId = (result as any).manifest?.id || 'unknown';
-          const lastApplied = await AsyncStorage.getItem(SILENT_APPLIED_KEY).catch(() => null);
-          if (lastApplied === updateId) return;
-
           await Updates.fetchUpdateAsync();
-          await AsyncStorage.setItem(SILENT_APPLIED_KEY, updateId).catch(() => {});
           await Updates.reloadAsync();
         }
       } catch {
@@ -80,19 +75,33 @@ export function useAppUpdate() {
       }
     };
 
-    const timer = setTimeout(silentCheck, 5000);
-    return () => clearTimeout(timer);
+    silentCheck();
   }, []);
 
   // Check server for updates (manual or automatic)
   const checkForUpdate = useCallback(async (isManual = false) => {
     if (isManual) {
       setIsChecking(true);
-      setStatusMessage('Checking server for updates...');
+      setStatusMessage('Checking for updates...');
     }
 
     try {
-      // 1. Check Backend Broadcast API
+      // 1. Check Expo EAS update channel first
+      if (!__DEV__ && Updates.isEnabled) {
+        try {
+          const result = await Updates.checkForUpdateAsync();
+          if (result.isAvailable) {
+            setStatusMessage('Downloading latest update...');
+            setIsDownloading(true);
+            await Updates.fetchUpdateAsync();
+            setStatusMessage('Reloading with latest build...');
+            await Updates.reloadAsync();
+            return;
+          }
+        } catch {}
+      }
+
+      // 2. Check Backend Broadcast API
       const res = await fetch(`${API_BASE}/api/app-updates`).catch(() => null);
       if (res && res.ok) {
         const json = await res.json().catch(() => null);
@@ -124,19 +133,6 @@ export function useAppUpdate() {
             }
             return;
           }
-        }
-      }
-
-      // 2. Fallback: check Expo EAS update channel
-      if (!__DEV__ && Updates.isEnabled) {
-        const result = await Updates.checkForUpdateAsync();
-        if (result.isAvailable) {
-          setStatusMessage('Downloading EAS update patch...');
-          setIsDownloading(true);
-          await Updates.fetchUpdateAsync();
-          setStatusMessage('Reloading with latest bundle...');
-          await Updates.reloadAsync();
-          return;
         }
       }
 

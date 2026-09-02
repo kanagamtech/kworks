@@ -639,6 +639,18 @@ const server = http.createServer(async (req, res) => {
         }
       }
 
+      // App Updates Public Routes
+      if ((pathname === '/api/app-updates' || pathname === '/api/app-update') && req.method === 'GET') {
+        return sendJSON(res, 200, { success: true, data: db.getAppUpdates() });
+      }
+      if ((pathname === '/api/app-updates' || pathname === '/api/app-update') && req.method === 'POST') {
+        return protectedRoute(async () => {
+          const body = await parseBody(req);
+          const saved = db.saveAppUpdates(body);
+          return sendJSON(res, 200, { success: true, data: saved });
+        }, 'notices:create')(req, res);
+      }
+
       // Push Token Registration Route
       if (pathname === '/api/push-token' && req.method === 'POST') {
         return protectedRoute(async () => {

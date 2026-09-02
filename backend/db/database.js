@@ -523,6 +523,29 @@ class Database {
     return (this.data.push_tokens && this.data.push_tokens[cleanEmail]) || null;
   }
 
+  getAppUpdates() {
+    return this.data.app_updates || {
+      version: '1.4.0-beta',
+      buildNumber: 4,
+      title: 'KwOrKs v1.4 Beta Test',
+      notes: 'End-to-End Encryption (E2EE), Permanent Chat Persistence, Targeted Push Notifications & In-Modal Food Selection.',
+      mandatory: false,
+      apkUrl: 'https://expo.dev/artifacts/eas/umETEjrlthy-f8KLf3xD4XNQ2LY-eI05DtwBpBcnd3U.apk',
+      publishedAt: new Date().toISOString(),
+      updateId: 'upd_v1_4_0_beta',
+    };
+  }
+
+  saveAppUpdates(updates) {
+    this.data.app_updates = {
+      ...(this.data.app_updates || {}),
+      ...updates,
+      publishedAt: new Date().toISOString(),
+    };
+    this.save();
+    return this.data.app_updates;
+  }
+
   getChatMessages() {
     return this.data.chat_messages || [];
   }
