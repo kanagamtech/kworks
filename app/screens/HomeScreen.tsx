@@ -19,7 +19,6 @@ const BRAND = {
 
 const MENU_ITEMS = [
   { id: 'attendance', label: 'ATTENDANCE', icon: require('../assets/images/icon-attendance.png'), theme: 'blue' },
-  { id: 'food', label: 'FOOD COUNT', icon: require('../assets/images/icon-attendance.png'), theme: 'green' },
   { id: 'leave', label: 'LEAVE MANAGEMENT', icon: require('../assets/images/icon-leave.png'), theme: 'green' },
   { id: 'notification', label: 'NOTIFICATION', icon: require('../assets/images/icon-notification.png'), theme: 'blue' },
   { id: 'support', label: 'SUPPORT', icon: require('../assets/images/icon-support.png'), theme: 'green' },
@@ -31,7 +30,7 @@ type Props = {
   user: UserProfile | null;
   onLoginPress: () => void;
   onOpenAttendance: () => void;
-  onOpenFoodCount: () => void;
+  onOpenFoodCount?: () => void;
   onOpenLeave: () => void;
   onOpenNotifications: () => void;
   onOpenSupport: () => void;
@@ -70,7 +69,7 @@ export default function HomeScreen({ user, onLoginPress, onOpenAttendance, onOpe
     if (id === 'attendance') {
       onOpenAttendance();
     } else if (id === 'food') {
-      onOpenFoodCount();
+      onOpenFoodCount?.();
     } else if (id === 'leave') {
       onOpenLeave();
     } else if (id === 'notification') {
