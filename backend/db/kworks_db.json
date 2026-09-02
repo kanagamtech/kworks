@@ -483,6 +483,24 @@
   ],
   "attendance": [
     {
+      "id": "att_sabarees_20260902",
+      "date": "2026-09-02",
+      "time": "09:00:00 AM",
+      "user": "sabarees@quantummate.in",
+      "name": "Sabarees",
+      "company": "quantummate",
+      "department": "General",
+      "role": "Employee",
+      "location": "QuantumMate Office, Coimbatore, Tamil Nadu, India",
+      "latitude": 11.0168,
+      "longitude": 76.9558,
+      "accuracy": 5,
+      "gpsFormatted": "11.0168° N, 76.9558° E",
+      "mapsUrl": "https://www.google.com/maps?q=11.0168,76.9558",
+      "photoUri": "",
+      "created_at": "2026-09-02T03:30:00.000Z"
+    },
+    {
       "id": "att_1788241130478_bpn0",
       "date": "2026-09-01",
       "time": "11:08:48 AM",
