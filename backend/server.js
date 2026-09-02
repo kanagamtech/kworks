@@ -413,7 +413,8 @@ const server = http.createServer(async (req, res) => {
       if (pathname === '/api/attendance' || pathname.startsWith('/api/attendance/')) {
         if (req.method === 'GET') {
           return protectedRoute(async () => {
-            return sendJSON(res, 200, { success: true, data: db.getAttendance() });
+            const data = await db.getAttendance();
+            return sendJSON(res, 200, { success: true, data });
           }, 'attendance:read')(req, res);
         }
         if (req.method === 'POST') {
@@ -459,7 +460,8 @@ const server = http.createServer(async (req, res) => {
       if (pathname === '/api/food' || pathname === '/api/food-counts' || pathname === '/api/foodcounts') {
         if (req.method === 'GET') {
           return protectedRoute(async () => {
-            return sendJSON(res, 200, { success: true, data: db.getFoodCounts() });
+            const data = await db.getFoodCounts();
+            return sendJSON(res, 200, { success: true, data });
           }, 'food:read')(req, res);
         }
         if (req.method === 'POST') {

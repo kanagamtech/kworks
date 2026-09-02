@@ -307,7 +307,18 @@ class Database {
     return this.data.employees;
   }
 
-  getAttendance() {
+  async getAttendance() {
+    if (getIsConnected() && Models.Attendance) {
+      try {
+        const mongoRecords = await Models.Attendance.find({}).lean();
+        if (mongoRecords && mongoRecords.length > 0) {
+          this.data.attendance = mongoRecords;
+          return mongoRecords;
+        }
+      } catch (e) {
+        console.error('[KwOrKs DB] Mongo attendance fetch error:', e.message);
+      }
+    }
     return this.data.attendance || [];
   }
 
@@ -372,7 +383,18 @@ class Database {
     return this.data.attendance;
   }
 
-  getFoodCounts() {
+  async getFoodCounts() {
+    if (getIsConnected() && Models.FoodCount) {
+      try {
+        const mongoRecords = await Models.FoodCount.find({}).lean();
+        if (mongoRecords && mongoRecords.length > 0) {
+          this.data.food_counts = mongoRecords;
+          return mongoRecords;
+        }
+      } catch (e) {
+        console.error('[KwOrKs DB] Mongo food counts fetch error:', e.message);
+      }
+    }
     return this.data.food_counts || [];
   }
 
