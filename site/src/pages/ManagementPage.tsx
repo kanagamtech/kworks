@@ -1164,11 +1164,17 @@ export const ManagementPage: React.FC = () => {
 
         {/* TAB 2: ATTENDANCE TRACKING */}
         {activeTab === 'attendance' && (() => {
+          const getLocalToday = () => {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          };
+
           // All distinct dates in attendance records (most recent first)
           const allDates = Array.from(new Set(attendance.map((r) => r.date).filter(Boolean)))
             .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-          const todayStr = new Date().toISOString().split('T')[0];
-          const selectedDate = attendanceDate || (allDates[0] || todayStr);
+          const todayStr = getLocalToday();
+          const activeDateWithData = allDates.includes(todayStr) ? todayStr : (allDates[0] || todayStr);
+          const selectedDate = attendanceDate || activeDateWithData;
 
           // Records matching selectedDate
           const dateRecords = attendance.filter((r) => r.date === selectedDate);
@@ -1556,9 +1562,52 @@ export const ManagementPage: React.FC = () => {
                       <p style={{ fontSize: '15px', fontWeight: 700, color: '#9C7B4E', margin: 0 }}>
                         No employees marked attendance for {selectedDate}.
                       </p>
-                      <p style={{ fontSize: '12px', color: '#999', marginTop: '6px' }}>
-                        Try picking a different date or clearing your search filter.
-                      </p>
+                      {allDates.length > 0 && (
+                        <div style={{ marginTop: '16px' }}>
+                          <p style={{ fontSize: '13px', fontWeight: 800, color: '#2B1022', marginBottom: '8px' }}>
+                            Check-in records found on other dates:
+                          </p>
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                            {allDates.map((d) => (
+                              <button
+                                key={d}
+                                type="button"
+                                onClick={() => setAttendanceDate(d)}
+                                style={{
+                                  backgroundColor: '#D7AB6A',
+                                  color: '#FFFFFF',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  padding: '8px 14px',
+                                  fontSize: '12px',
+                                  fontWeight: 800,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                📅 View {d} ({attendance.filter((r) => r.date === d).length} check-ins)
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div style={{ marginTop: '16px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setAttendanceViewMode('logs')}
+                          style={{
+                            backgroundColor: 'transparent',
+                            border: '1.5px solid #D7AB6A',
+                            color: '#2B1022',
+                            borderRadius: '8px',
+                            padding: '8px 18px',
+                            fontSize: '12.5px',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          📋 View All Check-In Logs ({attendance.length} Total Logs)
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
