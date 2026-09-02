@@ -21,6 +21,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import MorningBackground from '../components/MorningBackground';
 import { useResponsive } from '../hooks/useResponsive';
 import { useAppUpdate } from '../hooks/useAppUpdate';
+import UpdateModal from '../components/UpdateModal';
 import { API_BASE } from '../utils/config';
 import type { UserProfile } from '../types';
 
@@ -74,7 +75,19 @@ export default function LoginScreen({ user, onSave, onBack, onLogout }: Props) {
   const [markedTimestamp, setMarkedTimestamp] = useState<number | null>(null);
   const [timeLeftStr, setTimeLeftStr] = useState<string>('');
   const [isLogoutUnlocked, setIsLogoutUnlocked] = useState<boolean>(true);
-  const { checkForUpdate, isChecking: isCheckingUpdate, statusMessage: updateStatusMsg } = useAppUpdate();
+  const {
+    updateAvailable,
+    updateInfo,
+    isChecking: isCheckingUpdate,
+    isDownloading: isDownloadingUpdate,
+    isDownloadingApk: isDownloadingApkUpdate,
+    downloadProgress: updateDownloadProgress,
+    downloadAndInstallApk: updateDownloadAndInstallApk,
+    applyUpdate: updateApplyUpdate,
+    dismissUpdate: updateDismissUpdate,
+    statusMessage: updateStatusMsg,
+    checkForUpdate,
+  } = useAppUpdate();
 
   useEffect(() => {
     Animated.timing(fade, { toValue: 1, duration: 400, easing: Easing.out(Easing.cubic), useNativeDriver }).start();
@@ -564,6 +577,17 @@ export default function LoginScreen({ user, onSave, onBack, onLogout }: Props) {
             </View>
           </View>
         </Modal>
+
+        <UpdateModal
+          visible={updateAvailable}
+          updateInfo={updateInfo}
+          isDownloading={isDownloadingUpdate}
+          isDownloadingApk={isDownloadingApkUpdate}
+          downloadProgress={updateDownloadProgress}
+          onDownloadApk={updateDownloadAndInstallApk}
+          onApply={updateApplyUpdate}
+          onDismiss={updateDismissUpdate}
+        />
       </Animated.View>
     </View>
   );
