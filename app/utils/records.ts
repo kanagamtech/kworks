@@ -9,12 +9,12 @@ export type AttendanceRecord = {
   photoUri: string | null;
 };
 
-export type MealKey = 'breakfast' | 'morningSnacks' | 'lunch' | 'eveningSnacks';
+export type MealKey = 'lunch' | 'eveningSnacks' | 'breakfast' | 'morningSnacks';
 
 export type FoodCountRecord = {
   date: string;
   user: string;
-  meals: Record<MealKey, boolean | null>;
+  meals: Partial<Record<MealKey, boolean | null>> | Record<string, boolean | null>;
 };
 
 export const ATTENDANCE_KEY = 'kworks_attendance_records';

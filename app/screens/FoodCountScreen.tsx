@@ -16,35 +16,9 @@ const BRAND = {
   warn: '#D7AB6A',
 };
 
-type MealKey = 'breakfast' | 'morningSnacks' | 'lunch' | 'eveningSnacks';
+type MealKey = 'lunch' | 'eveningSnacks' | 'breakfast' | 'morningSnacks';
 
-const MEALS: { key: MealKey; label: string; icon: React.ReactNode }[] = [
-  {
-    key: 'breakfast',
-    label: 'Breakfast',
-    icon: (
-      <Svg width={26} height={26} viewBox="0 0 24 24">
-        <Rect x={3} y={10} width={13} height={9} rx={1.5} stroke="#D7AB6A" strokeWidth={1.7} fill="rgba(215,171,106,0.35)" />
-        <Path d="M16 13 h2 a2.4 2.4 0 0 1 0 4.8 h-2" stroke="#D7AB6A" strokeWidth={1.7} fill="none" />
-        <Path d="M7 10 V8 M10.5 10 V7 M14 10 V8.5" stroke="#D7AB6A" strokeWidth={1.7} strokeLinecap="round" fill="none" />
-        <Path d="M2 22 h15" stroke="#D7AB6A" strokeWidth={1.7} strokeLinecap="round" />
-      </Svg>
-    ),
-  },
-  {
-    key: 'morningSnacks',
-    label: 'Morning Snacks',
-    icon: (
-      <Svg width={26} height={26} viewBox="0 0 24 24">
-        <Circle cx={12} cy={13} r={8} stroke="#D7AB6A" strokeWidth={1.7} fill="rgba(215,171,106,0.35)" />
-        <Circle cx={12} cy={13} r={2} fill="#D7AB6A" />
-        <Circle cx={8} cy={9.5} r={1} fill="#D7AB6A" />
-        <Circle cx={16} cy={9.5} r={1} fill="#D7AB6A" />
-        <Circle cx={8} cy={16} r={1} fill="#D7AB6A" />
-        <Circle cx={16} cy={16} r={1} fill="#D7AB6A" />
-      </Svg>
-    ),
-  },
+const MEALS: { key: 'lunch' | 'eveningSnacks'; label: string; icon: React.ReactNode }[] = [
   {
     key: 'lunch',
     label: 'Lunch',
@@ -76,14 +50,12 @@ type Props = {
 };
 
 export default function FoodCountScreen({ onBack, onSubmit, user }: Props) {
-  const [counts, setCounts] = useState<Record<MealKey, boolean | null>>({
-    breakfast: null,
-    morningSnacks: null,
+  const [counts, setCounts] = useState<{ lunch: boolean | null; eveningSnacks: boolean | null }>({
     lunch: null,
     eveningSnacks: null,
   });
 
-  const allSelected = Object.values(counts).every((v) => v !== null);
+  const allSelected = counts.lunch !== null && counts.eveningSnacks !== null;
 
   const handleSubmit = () => {
     const payload = {

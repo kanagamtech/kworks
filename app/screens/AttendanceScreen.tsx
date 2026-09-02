@@ -351,7 +351,6 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
     setScanning(false);
     setStatus('Attendance marked successfully!');
     setProgress(1);
-    setShowFoodPopup(true);
 
     const rec = {
       date: nowDate,
@@ -820,13 +819,11 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
                 Attendance verified! Select your meal options for today:
               </Text>
 
-              {/* Meal Options Selection List */}
+              {/* Meal Options Selection List (Lunch & Evening Snacks only) */}
               <View style={styles.mealOptionsWrap}>
                 {[
                   { key: 'lunch' as MealKey, label: '🍱 Lunch', desc: 'Afternoon meals' },
                   { key: 'eveningSnacks' as MealKey, label: '☕ Evening Snacks', desc: 'Tea & snacks' },
-                  { key: 'breakfast' as MealKey, label: '🥐 Breakfast', desc: 'Morning breakfast' },
-                  { key: 'morningSnacks' as MealKey, label: '🍪 Morning Snacks', desc: 'Morning refreshments' },
                 ].map((item) => {
                   const isSelected = !!selectedMeals[item.key];
                   return (
