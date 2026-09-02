@@ -189,7 +189,8 @@ function AppInner() {
   }, []);
 
   // ── Global Chat Notification Poller ──────────────────────────────────────────
-  const lastKnownChatIdRef = useRef<string | null>(null);
+  const knownChatIdsRef = useRef<Set<string>>(new Set());
+  const isFirstChatPollRef = useRef<boolean>(true);
 
   useEffect(() => {
     if (!user?.email) return;
@@ -206,21 +207,32 @@ function AppInner() {
       fetch(`${API_BASE}/api/chat`)
         .then((res) => res.json())
         .then((res) => {
-          if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-            const latest = res.data[res.data.length - 1];
-            if (!latest || latest.isDeleted) return;
+          if (res.success && Array.isArray(res.data)) {
+            const myEmail = user.email.toLowerCase();
 
-            if (lastKnownChatIdRef.current && lastKnownChatIdRef.current !== latest.id) {
-              const myEmail = user.email.toLowerCase();
-              const isFromOther = latest.from?.toLowerCase() !== myEmail;
-              const isDirectToMe = latest.to?.toLowerCase() === myEmail;
-              const isGroupMsg = latest.to?.startsWith('grp_');
+            if (isFirstChatPollRef.current) {
+              // Seed known IDs on first load
+              res.data.forEach((m: any) => {
+                if (m.id) knownChatIdsRef.current.add(m.id);
+              });
+              isFirstChatPollRef.current = false;
+              return;
+            }
+
+            res.data.forEach((msg: any) => {
+              if (!msg.id || msg.isDeleted || knownChatIdsRef.current.has(msg.id)) return;
+
+              knownChatIdsRef.current.add(msg.id);
+
+              const isFromOther = msg.from?.toLowerCase() !== myEmail;
+              const isDirectToMe = msg.to?.toLowerCase() === myEmail;
+              const isGroupMsg = msg.to?.startsWith('grp_');
 
               if (isFromOther && (isDirectToMe || isGroupMsg)) {
                 if (screen !== 'chat') {
-                  const senderName = latest.from?.split('@')[0] || 'Someone';
-                  const title = isGroupMsg ? '💬 KwOrKs Group' : `💬 ${senderName}`;
-                  const body = latest.text || (latest.photo ? '📷 Sent a photo' : '📄 Sent a document');
+                  const senderName = msg.from?.split('@')[0] || 'Someone';
+                  const title = isGroupMsg ? `💬 Group: ${senderName}` : `💬 ${senderName}`;
+                  const body = msg.text || (msg.photo ? '📷 Sent a photo' : (msg.document ? `📄 ${msg.document.name || 'Document'}` : 'New message'));
 
                   if (Platform.OS !== 'web') {
                     Notifications.scheduleNotificationAsync({
@@ -234,15 +246,14 @@ function AppInner() {
                   }
                 }
               }
-            }
-            lastKnownChatIdRef.current = latest.id;
+            });
           }
         })
         .catch(() => {});
     };
 
     checkGlobalChat();
-    const interval = setInterval(checkGlobalChat, 3500);
+    const interval = setInterval(checkGlobalChat, 3000);
     return () => clearInterval(interval);
   }, [user, screen]);
 

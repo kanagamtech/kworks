@@ -90,7 +90,7 @@ type NotificationItem = {
   id: string;
   title: string;
   body: string;
-  type: 'announcement' | 'attendance_check_in' | 'attendance_punch_out' | 'poll' | 'celebration' | 'general' | 'leave' | 'ticket';
+  type: 'announcement' | 'attendance_check_in' | 'attendance_punch_out' | 'poll' | 'celebration' | 'general' | 'leave' | 'ticket' | 'chat';
   category?: string;
   team?: string;
   date: string;
@@ -738,6 +738,7 @@ export default function NotificationScreen({ onBack, user }: Props) {
                   const isCheckIn = n.type === 'attendance_check_in';
                   const isPunchOut = n.type === 'attendance_punch_out';
                   const isNotice = n.type === 'announcement';
+                  const isChat = n.type === 'chat';
 
                   return (
                     <Pressable
@@ -749,7 +750,9 @@ export default function NotificationScreen({ onBack, user }: Props) {
                       }}
                     >
                       <View style={styles.notifIconWrap}>
-                        {isCheckIn ? (
+                        {isChat ? (
+                          <Text style={styles.notifEmoji}>💬</Text>
+                        ) : isCheckIn ? (
                           <Text style={styles.notifEmoji}>🟢</Text>
                         ) : isPunchOut ? (
                           <Text style={styles.notifEmoji}>🔴</Text>

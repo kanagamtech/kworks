@@ -92,15 +92,17 @@ export default function SiteNotifications({ onOpen }: Props) {
         }
       } catch {}
 
-      // 2. Scan for new notices/polls from backend
+      // 2. Scan for new notices & notifications (including chat alerts) from backend
       const scan = async () => {
         if (!mounted.current) return;
+        const newNotices: Popup[] = [];
+
         try {
-          const res = await fetch(`${API_BASE}/api/notices`);
-          const data = await res.json();
-          if (data.success && Array.isArray(data.data)) {
-            const newNotices: Popup[] = [];
-            data.data.forEach((n: any) => {
+          // Fetch company notices
+          const resNotices = await fetch(`${API_BASE}/api/notices`);
+          const dataNotices = await resNotices.json();
+          if (dataNotices.success && Array.isArray(dataNotices.data)) {
+            dataNotices.data.forEach((n: any) => {
               const id = `notice_${n.id}`;
               if (!seenIdsRef.current.includes(id)) {
                 newNotices.push({
@@ -112,21 +114,42 @@ export default function SiteNotifications({ onOpen }: Props) {
                 seenIdsRef.current.push(id);
               }
             });
-
-            if (newNotices.length > 0) {
-              AsyncStorage.setItem(SEEN_KEY, JSON.stringify(seenIdsRef.current.slice(-300))).catch(() => {});
-              newNotices.forEach((it) => queue.current.push(it));
-              if (!showing.current) {
-                showNext();
-              }
-            }
           }
         } catch {}
+
+        try {
+          // Fetch system activity and chat notifications
+          const resNotifs = await fetch(`${API_BASE}/api/notifications`);
+          const dataNotifs = await resNotifs.json();
+          if (dataNotifs.success && Array.isArray(dataNotifs.data)) {
+            dataNotifs.data.slice(0, 10).forEach((n: any) => {
+              const id = `sys_${n.id}`;
+              if (!seenIdsRef.current.includes(id)) {
+                const kind = n.type === 'chat' ? '💬 Chat Message' : (n.category || 'Notification');
+                newNotices.push({
+                  id,
+                  kind,
+                  title: n.title || 'New Notification',
+                  body: n.body || n.message || '',
+                });
+                seenIdsRef.current.push(id);
+              }
+            });
+          }
+        } catch {}
+
+        if (newNotices.length > 0) {
+          AsyncStorage.setItem(SEEN_KEY, JSON.stringify(seenIdsRef.current.slice(-300))).catch(() => {});
+          newNotices.forEach((it) => queue.current.push(it));
+          if (!showing.current) {
+            showNext();
+          }
+        }
       };
 
-      // Run initial check after 2 seconds, then periodically
-      setTimeout(scan, 2000);
-      intervalId = setInterval(scan, 12000);
+      // Run initial check after 2 seconds, then periodically every 5 seconds
+      setTimeout(scan, 1500);
+      intervalId = setInterval(scan, 5000);
     };
 
     init();

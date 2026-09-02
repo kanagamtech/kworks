@@ -466,9 +466,12 @@ class Database {
           if (memberEmail && memberEmail.toLowerCase() !== msg.from?.toLowerCase()) {
             this.addNotification({
               title: `💬 ${group.name} (${senderName})`,
+              body: `${senderName}: ${previewText}`,
               message: previewText,
               target: memberEmail,
               type: 'chat',
+              category: 'CHAT',
+              employeeName: senderName,
               groupId: group.id,
               from: msg.from,
             });
@@ -477,10 +480,13 @@ class Database {
       } else if (msg.to) {
         // Direct 1-on-1 message
         this.addNotification({
-          title: `💬 ${senderName}`,
+          title: `💬 New Message from ${senderName}`,
+          body: previewText,
           message: previewText,
           target: msg.to,
           type: 'chat',
+          category: 'CHAT',
+          employeeName: senderName,
           from: msg.from,
         });
       }
