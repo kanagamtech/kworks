@@ -160,26 +160,30 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
       const today = todayKey();
       const userKey = user?.email?.trim().toLowerCase() || 'guest';
 
-      // Check punch-out record first
+      // 1. Sync any local punch-outs from phone storage up to MongoDB, then remove from local store
       try {
-        const outRaw = await AsyncStorage.getItem(`kworks_punchout_${today}_${userKey}`);
-        if (outRaw) {
-          const outParsed = JSON.parse(outRaw);
-          setPunchedOut(true);
-          setPunchOutData(outParsed);
-          setDone(true);
-
-          fetch(`${API_BASE}/api/attendance/punchout`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              date: today,
-              userEmail: userKey,
-              punchOutTime: outParsed.time || outParsed.punchOutTime || new Date().toLocaleTimeString(),
-              duration: outParsed.duration || '08h 00m',
-            }),
-          }).catch(() => {});
-          return;
+        const allKeys = await AsyncStorage.getAllKeys();
+        const punchoutKeys = allKeys.filter((k) => k.startsWith('kworks_punchout_'));
+        for (const k of punchoutKeys) {
+          const raw = await AsyncStorage.getItem(k);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            const parts = k.split('_'); // kworks_punchout_YYYY-MM-DD_userEmail
+            const pDate = parts[2] || today;
+            const pEmail = parts.slice(3).join('_') || userKey;
+            await fetch(`${API_BASE}/api/attendance/punchout`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                date: pDate,
+                userEmail: pEmail,
+                punchOutTime: parsed.time || parsed.punchOutTime || new Date().toLocaleTimeString(),
+                duration: parsed.duration || '08h 00m',
+              }),
+            }).catch(() => {});
+            // Remove from local storage after syncing to MongoDB
+            await AsyncStorage.removeItem(k).catch(() => {});
+          }
         }
       } catch {}
 
@@ -220,7 +224,16 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
             setCapturedAt(todayRec.time);
             setDone(true);
             setProgress(1);
-            setStatus('Attendance verified & active!');
+            if (todayRec.punchOutTime) {
+              setPunchedOut(true);
+              setPunchOutData({
+                time: todayRec.punchOutTime,
+                duration: todayRec.duration || 'Shift ended',
+              });
+              setStatus('Shift completed & punched out');
+            } else {
+              setStatus('Attendance verified & active!');
+            }
 
             // Sync with local store
             const raw = await AsyncStorage.getItem('kworks_attendance_records');
@@ -456,14 +469,11 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
         }),
       }).catch(() => {});
 
-      // Save punch out local state
+      // Save punch out memory state (MongoDB is the sole persistent store)
       const punchOutObj = { time: nowTime, duration: shiftTimerStr };
       setPunchedOut(true);
       setPunchOutData(punchOutObj);
-      await AsyncStorage.setItem(
-        `kworks_punchout_${nowDate}_${userKey}`,
-        JSON.stringify(punchOutObj)
-      ).catch(() => {});
+      await AsyncStorage.removeItem(`kworks_punchout_${nowDate}_${userKey}`).catch(() => {});
       await AsyncStorage.removeItem('kworks_last_attendance_time').catch(() => {});
     } catch {}
 
