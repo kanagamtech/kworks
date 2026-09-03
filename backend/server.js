@@ -433,7 +433,7 @@ const server = http.createServer(async (req, res) => {
             if (!body.date || !body.userEmail || !body.punchOutTime || !body.duration) {
               return sendJSON(res, 400, { success: false, message: 'Missing required punch out data.' });
             }
-            const updated = db.punchOutAttendance(body.userEmail, body.date, body.punchOutTime, body.duration);
+            const updated = await db.punchOutAttendance(body.userEmail, body.date, body.punchOutTime, body.duration);
             if (updated) {
               return sendJSON(res, 200, { success: true, data: updated });
             } else {

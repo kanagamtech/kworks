@@ -143,9 +143,10 @@ class Database {
       console.log('[KwOrKs] Connecting to MongoDB...');
       const connected = await connectMongoDB(mongoUri);
       if (connected) {
-        console.log('[KwOrKs] MongoDB connected. Loading all data from MongoDB...');
+        console.log('[KwOrKs] MongoDB connected. Syncing local data to MongoDB and loading records...');
+        await this.syncToMongo();
         await this.loadFromMongo();
-        console.log('[KwOrKs] MongoDB data restored successfully.');
+        console.log('[KwOrKs] MongoDB connected & synchronized successfully.');
       } else {
         console.warn('[KwOrKs] MongoDB connection failed. Using local JSON file.');
       }
@@ -225,6 +226,14 @@ class Database {
       for (const att of this.data.attendance || []) {
         await Models.Attendance.updateOne({ id: att.id }, { $set: att }, { upsert: true }).catch(() => {});
       }
+      // Sync food counts
+      for (const fc of this.data.food_counts || []) {
+        await Models.FoodCount.updateOne({ date: fc.date, user: fc.user }, { $set: fc }, { upsert: true }).catch(() => {});
+      }
+      // Sync leave requests
+      for (const [key, val] of Object.entries(this.data.leave_requests || {})) {
+        await Models.LeaveRequest.updateOne({ key }, { $set: { key, ...val } }, { upsert: true }).catch(() => {});
+      }
       // Sync notices
       for (const notice of this.data.notices || []) {
         await Models.Notice.updateOne({ id: notice.id }, { $set: notice }, { upsert: true }).catch(() => {});
@@ -233,6 +242,7 @@ class Database {
       for (const notif of this.data.notifications || []) {
         await Models.Notification.updateOne({ id: notif.id }, { $set: notif }, { upsert: true }).catch(() => {});
       }
+      console.log(`[KwOrKs MongoDB] Synced local database to MongoDB successfully.`);
     } catch (e) {
       console.error('[KwOrKs MongoDB] Sync error:', e.message);
     }
@@ -338,28 +348,42 @@ class Database {
     return item;
   }
 
-  punchOutAttendance(userEmail, date, punchOutTime, duration) {
-    if (!this.data.attendance) return null;
-    
-    // Find the record for this user and date
-    const idx = this.data.attendance.findIndex(
-      (a) => a.user?.toLowerCase() === userEmail?.toLowerCase() && a.date === date
-    );
-    
-    if (idx === -1) return null;
+  async punchOutAttendance(userEmail, date, punchOutTime, duration) {
+    if (!userEmail) return null;
+    let updatedRecord = null;
+    const cleanEmail = (userEmail || '').trim().toLowerCase();
+    const altDate = date && date.includes('-') ? date.split('-').reverse().join('-') : date;
 
-    this.data.attendance[idx].punchOutTime = punchOutTime;
-    this.data.attendance[idx].duration = duration;
-    this.save();
-
-    if (getIsConnected()) {
-      Models.Attendance.updateOne(
-        { id: this.data.attendance[idx].id },
-        { punchOutTime, duration }
-      ).catch(() => {});
+    // 1. Update in MongoDB directly if connected
+    if (getIsConnected() && Models.Attendance) {
+      try {
+        updatedRecord = await Models.Attendance.findOneAndUpdate(
+          {
+            user: new RegExp(`^${cleanEmail}$`, 'i'),
+            $or: [{ date: date }, { date: altDate }]
+          },
+          { punchOutTime, duration },
+          { new: true }
+        ).lean();
+      } catch (e) {
+        console.error('[KwOrKs DB] Mongo punchout error:', e.message);
+      }
     }
-    
-    return this.data.attendance[idx];
+
+    // 2. Also update in-memory / local fallback
+    if (this.data.attendance) {
+      const idx = this.data.attendance.findIndex(
+        (a) => a.user?.toLowerCase() === cleanEmail && (a.date === date || a.date === altDate)
+      );
+      if (idx !== -1) {
+        this.data.attendance[idx].punchOutTime = punchOutTime;
+        this.data.attendance[idx].duration = duration;
+        this.save();
+        if (!updatedRecord) updatedRecord = this.data.attendance[idx];
+      }
+    }
+
+    return updatedRecord;
   }
 
   clearAttendance() {
