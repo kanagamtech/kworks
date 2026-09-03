@@ -1,8 +1,9 @@
-  import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Platform, Linking, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Updates from 'expo-updates';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { API_BASE } from '../utils/config';
 
 export interface AppUpdateInfo {
@@ -203,12 +204,18 @@ export function useAppUpdate() {
 
       setStatusMessage('Download complete! Opening installer...');
 
-      // Launch Android Package Installer
+      // Launch Android Package Installer natively
       if (Platform.OS === 'android') {
         try {
+          setStatusMessage('Launching Android Package Installer...');
           const contentUri = await FileSystem.getContentUriAsync(downloadResult.uri);
-          await Linking.openURL(contentUri);
-        } catch {
+          await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+            data: contentUri,
+            flags: 1, // Intent.FLAG_GRANT_READ_URI_PERMISSION
+            type: 'application/vnd.android.package-archive',
+          });
+        } catch (intentErr) {
+          console.warn('IntentLauncher failed, opening browser:', intentErr);
           // Fallback to direct APK URL in browser
           await Linking.openURL(targetUrl);
         }
@@ -232,7 +239,7 @@ export function useAppUpdate() {
   // 2. Apply JS/EAS OTA Patch
   const applyUpdate = useCallback(async () => {
     setIsDownloading(true);
-    setStatusMessage('Applying update patch...');
+    setStatusMessage('Downloading & applying OTA patch...');
 
     try {
       if (updateInfo?.version) {
@@ -243,12 +250,18 @@ export function useAppUpdate() {
         try {
           const checkResult = await Updates.checkForUpdateAsync();
           if (checkResult.isAvailable) {
+            setStatusMessage('Fetching latest update...');
             await Updates.fetchUpdateAsync();
+          }
+          setStatusMessage('Restarting app with latest build...');
+          await Updates.reloadAsync();
+          return;
+        } catch (err) {
+          console.warn('EAS update fetch error, attempting direct reload:', err);
+          try {
             await Updates.reloadAsync();
             return;
-          }
-        } catch {
-          // Fall back to APK installer
+          } catch {}
         }
       }
 

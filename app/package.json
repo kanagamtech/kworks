@@ -14,6 +14,7 @@
     "expo-file-system": "~19.0.24",
     "expo-image-manipulator": "~14.0.8",
     "expo-image-picker": "~17.0.11",
+    "expo-intent-launcher": "~13.0.8",
     "expo-linear-gradient": "~15.0.8",
     "expo-location": "~19.0.8",
     "expo-notifications": "~0.32.17",

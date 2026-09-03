@@ -57,7 +57,7 @@ export default function UpdateModal({
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={updateInfo.mandatory ? undefined : onDismiss}
+      onRequestClose={() => {}}
     >
       <View style={styles.overlay}>
         <View style={styles.card}>
@@ -152,16 +152,6 @@ export default function UpdateModal({
                 <Text style={styles.otaBtnText}>⚡ Apply Instant OTA Patch &amp; Restart</Text>
               )}
             </Pressable>
-
-            {!updateInfo.mandatory && (
-              <Pressable
-                style={styles.dismissBtn}
-                disabled={isDownloadingApk || isDownloading}
-                onPress={onDismiss}
-              >
-                <Text style={styles.dismissBtnText}>✕ Dismiss &amp; Continue</Text>
-              </Pressable>
-            )}
           </View>
         </View>
       </View>
