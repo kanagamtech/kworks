@@ -151,13 +151,12 @@ export function useAppUpdate() {
     }
   }, []);
 
-  // Initial check on mount
+  // Initial check on mount - silent background check only (no popup modal)
   useEffect(() => {
     if (!isCheckedRef.current) {
       isCheckedRef.current = true;
-      checkForUpdate(false);
     }
-  }, [checkForUpdate]);
+  }, []);
 
   // 1. Download & Install Full APK in-app
   const downloadAndInstallApk = useCallback(async (customUrl?: string) => {

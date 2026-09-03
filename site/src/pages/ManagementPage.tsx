@@ -1711,7 +1711,7 @@ export const ManagementPage: React.FC = () => {
                                     border: '1px solid rgba(215,171,106,0.4)',
                                   }}
                                 >
-                                  🚪 PUNCH OUT: {rec.punchOutTime || 'Active (In Progress)'}
+                                  🚪 PUNCH OUT: {rec.punchOutTime || (selectedDate < todayStr ? 'Closed (Shift Ended)' : 'Active (In Progress)')}
                                 </span>
                                 {rec.duration && (
                                   <span
@@ -1998,7 +1998,7 @@ export const ManagementPage: React.FC = () => {
                                   borderRadius: '4px',
                                 }}
                               >
-                                {empTodayRec ? (empTodayRec.punchOutTime ? '🏁 SHIFT COMPLETED' : '🟢 ACTIVE SHIFT') : '❌ ABSENT ON THIS DATE'}
+                                {empTodayRec ? (empTodayRec.punchOutTime || selectedDate < todayStr ? '🏁 SHIFT COMPLETED' : '🟢 ACTIVE SHIFT') : '❌ ABSENT ON THIS DATE'}
                               </span>
                             </div>
 
@@ -2015,7 +2015,7 @@ export const ManagementPage: React.FC = () => {
                               <div style={{ backgroundColor: '#FFFFFF', borderRadius: '8px', padding: '10px', border: '1px solid rgba(215,171,106,0.4)' }}>
                                 <div style={{ fontSize: '10px', fontWeight: 800, color: '#9C7B4E' }}>🚪 LOGOUT (PUNCH-OUT)</div>
                                 <div style={{ fontSize: '14px', fontWeight: 800, color: '#2B1022', marginTop: '4px' }}>
-                                  {empTodayRec?.punchOutTime || (empTodayRec ? 'In Progress' : '—')}
+                                  {empTodayRec?.punchOutTime || (empTodayRec ? (selectedDate < todayStr ? 'Closed (Shift Ended)' : 'In Progress') : '—')}
                                 </div>
                               </div>
 
@@ -2248,7 +2248,7 @@ export const ManagementPage: React.FC = () => {
                                             🟢 PUNCH IN: {r.time}
                                           </span>
                                           <span style={{ fontSize: '11.5px', fontWeight: 800, backgroundColor: r.punchOutTime ? 'rgba(215,171,106,0.2)' : 'rgba(46,139,87,0.1)', color: r.punchOutTime ? '#9C7B4E' : '#2E8B57', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(215,171,106,0.4)' }}>
-                                            🚪 PUNCH OUT: {r.punchOutTime || 'Active (In Progress)'}
+                                            🚪 PUNCH OUT: {r.punchOutTime || (r.date < todayStr ? 'Closed (Shift Ended)' : 'Active (In Progress)')}
                                           </span>
                                           {r.duration && (
                                              <span style={{ fontSize: '11.5px', fontWeight: 800, backgroundColor: 'rgba(75,29,63,0.1)', color: '#4B1D3F', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(75,29,63,0.2)' }}>

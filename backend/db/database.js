@@ -850,6 +850,56 @@ class Database {
     if (getIsConnected()) {
       Models.Notification.create(item).catch(() => {});
     }
+
+    // Dispatch real Expo Push Notification to devices so alerts ring even when app is CLOSED
+    try {
+      const pushMessages = [];
+      const title = item.title || 'KwOrKs Alert';
+      const body = item.body || item.message || 'You have a new update';
+
+      // 1. If notification is targeted to a specific email
+      if (item.target || item.employeeEmail) {
+        const targetEmail = (item.target || item.employeeEmail).toLowerCase().trim();
+        const token = this.getPushToken(targetEmail);
+        if (token) {
+          pushMessages.push({
+            to: token,
+            sound: 'default',
+            title,
+            body,
+            data: { notifId: item.id, type: item.type },
+            priority: 'high',
+            channelId: 'default',
+            _displayInForeground: true,
+          });
+        }
+      } else {
+        // 2. Broadcast notification to all active registered devices
+        for (const [email, token] of Object.entries(this.data.push_tokens || {})) {
+          if (token && typeof token === 'string' && token.startsWith('ExponentPushToken')) {
+            pushMessages.push({
+              to: token,
+              sound: 'default',
+              title,
+              body,
+              data: { notifId: item.id, type: item.type },
+              priority: 'high',
+              channelId: 'default',
+              _displayInForeground: true,
+            });
+          }
+        }
+      }
+
+      if (pushMessages.length > 0) {
+        sendExpoPushNotification(pushMessages).catch((err) => {
+          console.error('[KwOrKs Push] Push dispatch error:', err.message);
+        });
+      }
+    } catch (e) {
+      console.error('[KwOrKs Push] Error preparing push notifications:', e.message);
+    }
+
     return item;
   }
 
