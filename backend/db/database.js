@@ -137,7 +137,8 @@ class Database {
     const mongoUri =
       process.env.MONGODB_URI ||
       process.env.MONGO_URL ||
-      process.env.DATABASE_URL;
+      process.env.DATABASE_URL ||
+      'mongodb://root:FWsp6zg1e1QGpzvIs3e8a5hICkxiik7ZkAPbXt7DqZ6E3pUbB0LxMUZF8PCAY4PZ@103.98.192.11:27017/default?authSource=admin&directConnection=true';
 
     if (mongoUri) {
       console.log('[KwOrKs] Connecting to MongoDB...');
