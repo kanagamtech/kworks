@@ -444,21 +444,7 @@ export default function AttendanceScreen({ onDone, onFoodCount, user }: Props) {
         body: JSON.stringify(notifPayload),
       }).catch(() => {});
 
-      // 2. Publish to Management Notices Feed
-      await fetch(`${API_BASE}/api/notices`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: `punchout_${Date.now()}`,
-          title: `Shift Completed — ${user?.name || 'Employee'}`,
-          body: `${user?.name || 'Employee'} punched out at ${nowTime}. Total active shift time: ${shiftTimerStr}.`,
-          date: nowDate,
-          team: user?.department || 'ALL',
-          category: 'management',
-        }),
-      }).catch(() => {});
-
-      // 3. Save Punch Out Time to Attendance Record
+      // 1. Save Punch Out Time to Attendance Record
       await fetch(`${API_BASE}/api/attendance/punchout`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

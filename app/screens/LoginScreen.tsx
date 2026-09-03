@@ -291,6 +291,7 @@ export default function LoginScreen({ user, onSave, onBack, onLogout }: Props) {
         name: authData.user.name || name.trim() || 'Employee',
         email: authData.user.email || email.trim().toLowerCase(),
         company: authData.user.company || company.trim(),
+        role: authData.user.role || authData.user.destination || 'Employee',
         department: authData.user.department || 'General',
         destination: authData.user.destination || authData.user.role || 'Employee',
         photoUri: authData.user.photoUri || photoUri || null,
